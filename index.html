@@ -1,82 +1,125 @@
-    <!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bet261 Tool - Predictor 1X2</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Odds Signal Predictor</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-<div class="container">
-  <h1>⚽ Bet261 Tool</h1>
-  <p class="sub">Analyse 1X2 + marge bookmaker + stake intelligent (Kelly)</p>
-
-  <div class="card">
-
-    <label>Cote 1 (Home)</label>
-    <input type="number" step="0.01" id="odd1" placeholder="ex: 2.28" />
-
-    <label>Cote X (Draw)</label>
-    <input type="number" step="0.01" id="oddX" placeholder="ex: 3.47" />
-
-    <label>Cote 2 (Away)</label>
-    <input type="number" step="0.01" id="odd2" placeholder="ex: 3.01" />
-
-    <hr>
-
-    <label>Bankroll (Ar)</label>
-    <input type="number" id="bankroll" placeholder="ex: 100000" />
-
-    <label>Your probability for best pick (optional, %)</label>
-    <input type="number" step="0.01" id="myProb" placeholder="ex: 55" />
-
-    <label>Stake (Ar) (optional)</label>
-    <input type="number" id="stake" placeholder="ex: 5000" />
-
-    <label>Stake mode</label>
-    <select id="stakeMode">
-      <option value="none">No suggestion</option>
-      <option value="kelly">Kelly</option>
-      <option value="halfkelly">Half-Kelly</option>
-    </select>
-
-    <button onclick="calc()">Analyser</button>
-  </div>
-
-  <div class="card">
-    <h2>Résultats</h2>
-
-    <div class="grid">
-      <div class="box">
-        <div class="k">Proba 1</div>
-        <div class="v" id="p1">-</div>
-      </div>
-
-      <div class="box">
-        <div class="k">Proba X</div>
-        <div class="v" id="pX">-</div>
-      </div>
-
-      <div class="box">
-        <div class="k">Proba 2</div>
-        <div class="v" id="p2">-</div>
-      </div>
+  <header class="topbar">
+    <div>
+      <h1>Predictor 🧠 (Odds Signal + Probabilité)</h1>
+      <p class="sub">Ampidiro fotsiny ny odds 1X2 + G/NG dia mahazo Signal + Probabilité + Pick.</p>
     </div>
+  </header>
 
-    <p class="meta">Marge bookmaker: <b id="margin">-</b></p>
-    <p class="pick">Outcome probable: <b id="pick">-</b></p>
-    <p class="meta">Stake conseillé: <b id="stakeResult">-</b></p>
+  <main class="wrap">
+    <section class="card">
+      <h2>Input Odds</h2>
 
-  </div>
+      <div class="grid">
+        <div class="field">
+          <label>1 (Home)</label>
+          <input id="oddHome" inputmode="decimal" placeholder="oh: 1.45 na 1,45" />
+        </div>
+        <div class="field">
+          <label>X (Draw)</label>
+          <input id="oddDraw" inputmode="decimal" placeholder="oh: 4.21 na 4,21" />
+        </div>
+        <div class="field">
+          <label>2 (Away)</label>
+          <input id="oddAway" inputmode="decimal" placeholder="oh: 7.54 na 7,54" />
+        </div>
 
-  <div class="footer">
-    <small>⚠️ Outil d’analyse basé sur probabilités des cotes.</small>
-  </div>
+        <div class="field">
+          <label>G/NG — Oui (BTTS Yes)</label>
+          <input id="oddYes" inputmode="decimal" placeholder="oh: 2.06 na 2,06" />
+        </div>
+        <div class="field">
+          <label>G/NG — Non (BTTS No)</label>
+          <input id="oddNo" inputmode="decimal" placeholder="oh: 1.74 na 1,74" />
+        </div>
 
-</div>
+        <div class="field">
+          <label>Fanampiny (optional)</label>
+          <input id="note" placeholder="oh: Match 9 / Ligue 1 / etc" />
+        </div>
+      </div>
 
-<script src="script.js"></script>
+      <div class="actions">
+        <button id="btnPredict">Predict</button>
+        <button id="btnReset" class="ghost">Reset</button>
+      </div>
+
+      <p class="hint">
+        ✅ Manaiky <b>virgule</b> sy <b>point</b>. Ohatra: 1,45 na 1.45.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Output</h2>
+
+      <div id="alert" class="alert hidden"></div>
+
+      <div id="result" class="result hidden">
+        <div class="row">
+          <div class="big">
+            <div class="label">PICK</div>
+            <div id="pick" class="value"></div>
+            <div id="confidence" class="meta"></div>
+          </div>
+
+          <div class="badges" id="badges"></div>
+        </div>
+
+        <hr />
+
+        <h3>Probabilité (implied + normalized)</h3>
+        <div class="grid3">
+          <div class="mini">
+            <div class="k">P(1)</div>
+            <div id="p1" class="v"></div>
+          </div>
+          <div class="mini">
+            <div class="k">P(X)</div>
+            <div id="px" class="v"></div>
+          </div>
+          <div class="mini">
+            <div class="k">P(2)</div>
+            <div id="p2" class="v"></div>
+          </div>
+        </div>
+
+        <div class="grid3">
+          <div class="mini">
+            <div class="k">Book Margin (Overround)</div>
+            <div id="margin" class="v"></div>
+          </div>
+          <div class="mini">
+            <div class="k">Favorite</div>
+            <div id="fav" class="v"></div>
+          </div>
+          <div class="mini">
+            <div class="k">BTTS Signal</div>
+            <div id="btts" class="v"></div>
+          </div>
+        </div>
+
+        <hr />
+
+        <h3>Suggestion bets (option)</h3>
+        <ul id="suggestions" class="list"></ul>
+
+        <p id="noteOut" class="note"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>⚠️ Betting = risk. Ity app ity dia Signal/Probabilité, tsy “antoka”.</span>
+  </footer>
+
+  <script src="script.js"></script>
 </body>
 </html>
-    
