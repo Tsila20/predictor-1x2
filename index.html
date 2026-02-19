@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Predictor 1X2 (Odds → Proba)</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>⚽ Predictor 1X2</h1>
+    <p class="sub">Ampidiro ny cotes hitanao (1 / X / 2) dia hahazo probabilité + marge.</p>
+
+    <div class="card">
+      <label>Cote 1 (Home)</label>
+      <input type="number" step="0.01" id="odd1" placeholder="ex: 2.28">
+
+      <label>Cote X (Draw)</label>
+      <input type="number" step="0.01" id="oddX" placeholder="ex: 3.47">
+
+      <label>Cote 2 (Away)</label>
+      <input type="number" step="0.01" id="odd2" placeholder="ex: 3.01">
+
+      <button onclick="calc()">Calculer</button>
+    </div>
+
+    <div class="card">
+      <h2>Résultats</h2>
+      <div class="grid">
+        <div class="box">
+          <div class="k">Proba 1</div>
+          <div class="v" id="p1">—</div>
+        </div>
+        <div class="box">
+          <div class="k">Proba X</div>
+          <div class="v" id="pX">—</div>
+        </div>
+        <div class="box">
+          <div class="k">Proba 2</div>
+          <div class="v" id="p2">—</div>
+        </div>
+      </div>
+
+      <p class="meta">Marge bookmaker: <b id="margin">—</b></p>
+      <p class="pick">Outcome probable: <b id="pick">—</b></p>
+    </div>
+
+    <div class="footer">
+      <small>⚠️ Ity dia analyse probabilités avy amin’ny cotes, tsy antoka fandresena.</small>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
