@@ -1,124 +1,68 @@
-<!doctype html>
-<html lang="fr">
+<!DOCTYPE html>
+<html lang="mg">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Odds Signal Predictor</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Predictor 🧠 (Odds Signal + Probabilité) — Match 9</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>Predictor 🧠 (Odds Signal + Probabilité)</h1>
-      <p class="sub">Ampidiro fotsiny ny odds 1X2 + G/NG dia mahazo Signal + Probabilité + Pick.</p>
-    </div>
-  </header>
-
-  <main class="wrap">
-    <section class="card">
-      <h2>Input Odds</h2>
-
-      <div class="grid">
-        <div class="field">
-          <label>1 (Home)</label>
-          <input id="oddHome" inputmode="decimal" placeholder="oh: 1.45 na 1,45" />
-        </div>
-        <div class="field">
-          <label>X (Draw)</label>
-          <input id="oddDraw" inputmode="decimal" placeholder="oh: 4.21 na 4,21" />
-        </div>
-        <div class="field">
-          <label>2 (Away)</label>
-          <input id="oddAway" inputmode="decimal" placeholder="oh: 7.54 na 7,54" />
-        </div>
-
-        <div class="field">
-          <label>G/NG — Oui (BTTS Yes)</label>
-          <input id="oddYes" inputmode="decimal" placeholder="oh: 2.06 na 2,06" />
-        </div>
-        <div class="field">
-          <label>G/NG — Non (BTTS No)</label>
-          <input id="oddNo" inputmode="decimal" placeholder="oh: 1.74 na 1,74" />
-        </div>
-
-        <div class="field">
-          <label>Fanampiny (optional)</label>
-          <input id="note" placeholder="oh: Match 9 / Ligue 1 / etc" />
-        </div>
-      </div>
-
-      <div class="actions">
-        <button id="btnPredict">Predict</button>
-        <button id="btnReset" class="ghost">Reset</button>
-      </div>
-
-      <p class="hint">
-        ✅ Manaiky <b>virgule</b> sy <b>point</b>. Ohatra: 1,45 na 1.45.
+  <div class="wrap">
+    <header class="hero">
+      <h1>Predictor 🧠 <span class="muted">(Odds Signal + Probabilité)</span></h1>
+      <p class="subtitle">
+        Ampidiro ny odds <b>1X2</b> + <b>G/NG</b> ho an’ny <b>Match 9</b> → mivoaka <b>Signal</b> + <b>Probabilité</b> + <b>Pick</b>.
       </p>
+      <div class="note">
+        ⚠️ Fanamarihana: fitaovana “analysis” fotsiny ity (tsy garantie). Mifehy risika foana.
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Input — Match 9</h2>
+        <div class="actions">
+          <button id="fillExample" class="btn ghost">Example</button>
+          <button id="resetAll" class="btn ghost">Reset</button>
+          <button id="predictAll" class="btn primary">Predict 🧠</button>
+        </div>
+      </div>
+
+      <div class="hint">
+        ✅ Manaiky <b>virgule</b> na <b>point</b>: ohatra <code>3,64</code> na <code>3.64</code>  
+        — Odds rehetra tokony ho &gt; <b>1.00</b>.
+      </div>
+
+      <div class="table-wrap">
+        <table class="odds-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Fanampiny (optional)</th>
+              <th>1 (Home)</th>
+              <th>X (Draw)</th>
+              <th>2 (Away)</th>
+              <th>G/NG — Oui</th>
+              <th>G/NG — Non</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="card">
-      <h2>Output</h2>
-
-      <div id="alert" class="alert hidden"></div>
-
-      <div id="result" class="result hidden">
-        <div class="row">
-          <div class="big">
-            <div class="label">PICK</div>
-            <div id="pick" class="value"></div>
-            <div id="confidence" class="meta"></div>
-          </div>
-
-          <div class="badges" id="badges"></div>
-        </div>
-
-        <hr />
-
-        <h3>Probabilité (implied + normalized)</h3>
-        <div class="grid3">
-          <div class="mini">
-            <div class="k">P(1)</div>
-            <div id="p1" class="v"></div>
-          </div>
-          <div class="mini">
-            <div class="k">P(X)</div>
-            <div id="px" class="v"></div>
-          </div>
-          <div class="mini">
-            <div class="k">P(2)</div>
-            <div id="p2" class="v"></div>
-          </div>
-        </div>
-
-        <div class="grid3">
-          <div class="mini">
-            <div class="k">Book Margin (Overround)</div>
-            <div id="margin" class="v"></div>
-          </div>
-          <div class="mini">
-            <div class="k">Favorite</div>
-            <div id="fav" class="v"></div>
-          </div>
-          <div class="mini">
-            <div class="k">BTTS Signal</div>
-            <div id="btts" class="v"></div>
-          </div>
-        </div>
-
-        <hr />
-
-        <h3>Suggestion bets (option)</h3>
-        <ul id="suggestions" class="list"></ul>
-
-        <p id="noteOut" class="note"></p>
+      <div class="card-head">
+        <h2>Output</h2>
+        <div class="muted small" id="meta"></div>
       </div>
+      <div id="out" class="out-grid"></div>
     </section>
-  </main>
 
-  <footer class="footer">
-    <span>⚠️ Betting = risk. Ity app ity dia Signal/Probabilité, tsy “antoka”.</span>
-  </footer>
+    <footer class="footer">
+      <span class="muted small">Build: Match-9 Odds Signal Engine • 1X2 + BTTS(G/NG)</span>
+    </footer>
+  </div>
 
   <script src="script.js"></script>
 </body>
