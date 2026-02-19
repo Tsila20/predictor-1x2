@@ -1,284 +1,367 @@
-// ========= Helpers =========
-function toOdd(x) {
-  if (x === null || x === undefined) return null;
-  const s = String(x).trim();
-  if (!s) return null;
-  const v = parseFloat(s.replace(",", "."));
-  return Number.isFinite(v) && v > 1 ? v : null;
+// Match-9 Odds Signal Engine (1X2 + BTTS G/NG)
+// - no team-name logic
+// - signal from odds structure
+// - batch output 9 matches
+
+const N = 9;
+
+const rowsEl = document.getElementById("rows");
+const outEl = document.getElementById("out");
+const metaEl = document.getElementById("meta");
+
+const btnPredict = document.getElementById("predictAll");
+const btnReset = document.getElementById("resetAll");
+const btnExample = document.getElementById("fillExample");
+
+// ---------- helpers ----------
+function parseOdd(s) {
+  if (s == null) return NaN;
+  const t = String(s).trim().replace(/\s+/g, "");
+  if (!t) return NaN;
+  // accept comma or dot
+  const normalized = t.replace(",", ".");
+  const v = Number(normalized);
+  return Number.isFinite(v) ? v : NaN;
 }
 
-function impliedProb(odd) {
-  return odd ? 1 / odd : null;
+function inv(x){ return 1 / x; }
+
+function normProbs(invArr){
+  const sum = invArr.reduce((a,b)=>a+b,0);
+  if (!(sum > 0)) return { probs: invArr.map(()=>NaN), sum: NaN };
+  return { probs: invArr.map(v=>v/sum), sum };
 }
 
-function clamp01(x) {
-  return Math.max(0, Math.min(1, x));
+function pct(x){ return (x*100).toFixed(1) + "%"; }
+function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
+
+function outcomeLabel(k){
+  if (k === "1") return "1 (Home Win)";
+  if (k === "X") return "X (Draw)";
+  return "2 (Away Win)";
 }
 
-function pct(x) {
-  return (x * 100).toFixed(1) + "%";
+function favLabel(topP){
+  if (topP >= 0.55) return "HEAVY_FAV";
+  if (topP >= 0.46) return "SOLID_FAV";
+  if (topP >= 0.40) return "SLIGHT_FAV";
+  return "BALANCED";
 }
 
-function round2(x) {
-  return Math.round(x * 100) / 100;
+function pillClassByStrength(x){
+  if (x >= 0.60) return "good";
+  if (x >= 0.53) return "warn";
+  return "bad";
 }
 
-function pickFavorite(oHome, oAway) {
-  if (oHome < oAway) return { side: "1", odd: oHome };
-  if (oAway < oHome) return { side: "2", odd: oAway };
-  return { side: "EQUAL", odd: oHome };
-}
+// ---------- core engine ----------
+function analyzeMatch(input){
+  const o1 = input.o1, oX = input.oX, o2 = input.o2;
+  const oYes = input.oYes, oNo = input.oNo;
 
-// ========= Core Engine =========
-function compute1X2Probs(o1, oX, o2) {
-  const p1 = impliedProb(o1);
-  const pX = impliedProb(oX);
-  const p2 = impliedProb(o2);
-  const sum = p1 + pX + p2;
-
-  // Overround (book margin)
-  const overround = sum; // > 1
-
-  // Normalize probabilities so they sum to 1 (fair-ish)
-  const n1 = p1 / sum;
-  const nX = pX / sum;
-  const n2 = p2 / sum;
-
-  return { n1, nX, n2, overround };
-}
-
-function bttsSignal(yesOdd, noOdd) {
-  const pYes = impliedProb(yesOdd);
-  const pNo = impliedProb(noOdd);
-  if (!pYes || !pNo) return { label: "UNKNOWN", edge: 0 };
-
-  // Lower odd => higher implied chance
-  if (yesOdd <= 1.60) return { label: "BTTS_YES_LIKELY", edge: 0.15 };
-  if (noOdd  <= 1.60) return { label: "BTTS_NO_LIKELY",  edge: 0.15 };
-
-  // balanced check
-  const gap = Math.abs(yesOdd - noOdd);
-  if (gap <= 0.20) return { label: "BTTS_BALANCED", edge: 0.05 };
-
-  return { label: "BTTS_SOFT", edge: 0.08 };
-}
-
-function favoriteStrength(favOdd) {
-  if (favOdd <= 1.45) return "STRONG_FAV";
-  if (favOdd <= 1.70) return "FAV";
-  if (favOdd <= 2.10) return "SLIGHT_FAV";
-  return "OPEN";
-}
-
-// "Draw-trap": raha Draw prob avo + Favorite tsy "strong"
-function drawTrap(nX, favType) {
-  if (nX >= 0.30 && (favType === "FAV" || favType === "SLIGHT_FAV")) return true;
-  if (nX >= 0.33 && favType !== "STRONG_FAV") return true;
-  return false;
-}
-
-// Main decision (simple but pro signal-based)
-function predictFromOdds(o1, oX, o2, yesOdd, noOdd) {
-  const probs = compute1X2Probs(o1, oX, o2);
-  const fav = pickFavorite(o1, o2);
-  const favType = favoriteStrength(fav.odd);
-  const trap = drawTrap(probs.nX, favType);
-
-  const btts = bttsSignal(yesOdd, noOdd);
-
-  // Confidence base = best normalized prob
-  const bestProb = Math.max(probs.n1, probs.nX, probs.n2);
-
-  // Pick logic:
-  // - strong fav => 1 or 2
-  // - draw-trap => X / avoid
-  // - otherwise pick max probability (1/X/2)
-  let pick = "NO_BET";
-  let tags = [];
-  let suggestions = [];
-
-  // Book margin sanity
-  const marginPct = (probs.overround - 1);
-  if (marginPct > 0.12) tags.push({ t: "HIGH_MARGIN", cls: "warn" });
-
-  // BTTS tags
-  if (btts.label === "BTTS_YES_LIKELY") tags.push({ t: "BTTS_YES", cls: "good" });
-  if (btts.label === "BTTS_NO_LIKELY") tags.push({ t: "BTTS_NO", cls: "good" });
-  if (btts.label === "BTTS_BALANCED") tags.push({ t: "BTTS_BALANCED", cls: "warn" });
-  if (btts.label === "BTTS_SOFT") tags.push({ t: "BTTS_SOFT", cls: "warn" });
-
-  // Trap tag
-  if (trap) tags.push({ t: "DRAW_TRAP", cls: "bad" });
-
-  // Favorite tag
-  if (favType === "STRONG_FAV") tags.push({ t: "STRONG_FAV", cls: "good" });
-  else if (favType === "FAV") tags.push({ t: "FAV", cls: "warn" });
-  else tags.push({ t: "OPEN_GAME", cls: "warn" });
-
-  // Decide pick
-  if (favType === "STRONG_FAV" && !trap) {
-    pick = (fav.side === "1") ? "PICK: 1 (Home Win)" : "PICK: 2 (Away Win)";
-    suggestions.push("Raha te-hilamina: safidy 'DC' (1X na X2) mifanaraka amin’ilay favorite.");
-    suggestions.push("Azonao ampiana BTTS raha mifanaraka amin’ny signal (G/NG).");
-  } else if (trap) {
-    // draw trap: push draw/avoid
-    pick = "PICK: X (Draw) / AVOID";
-    suggestions.push("Soso-kevitra: 'X' na 'DC' miaro nul (1X na X2 arakaraka ny match).");
-    suggestions.push("Aza miditra 1 na 2 “straight” raha tsy manana info fanampiny.");
-  } else {
-    // choose highest prob
-    if (bestProb === probs.n1) pick = "PICK: 1 (Home Win)";
-    else if (bestProb === probs.n2) pick = "PICK: 2 (Away Win)";
-    else pick = "PICK: X (Draw)";
-    suggestions.push("Raha tsy matanjaka loatra ny pick: aleo DC na market safe.");
+  // validate
+  const odds = [o1,oX,o2,oYes,oNo];
+  const ok = odds.every(v => Number.isFinite(v) && v > 1.00001);
+  if (!ok) {
+    return { ok:false, error:"Odds tsy feno na misy tsy mety (tokony > 1.00 daholo).", input };
   }
 
-  // Confidence adjustment using signals
-  let conf = bestProb;
+  // 1X2 implied + normalized
+  const inv1x2 = [inv(o1), inv(oX), inv(o2)];
+  const sumRaw1x2 = inv1x2.reduce((a,b)=>a+b,0);
+  const overround1x2 = sumRaw1x2 - 1; // bookmaker margin approx
+  const { probs: p1x2 } = normProbs(inv1x2);
+  const P1 = p1x2[0], PX = p1x2[1], P2 = p1x2[2];
 
-  // Strong fav boosts confidence a bit
-  if (favType === "STRONG_FAV") conf += 0.06;
-  if (favType === "FAV") conf += 0.03;
+  // rank / favorite
+  const arr = [
+    { k:"1", p:P1, odd:o1 },
+    { k:"X", p:PX, odd:oX },
+    { k:"2", p:P2, odd:o2 },
+  ].sort((a,b)=>b.p-a.p);
 
-  // Trap reduces
-  if (trap) conf -= 0.08;
+  const top = arr[0];
+  const second = arr[1];
+  const strength = top.p - second.p; // separation
+  const fav = favLabel(top.p);
 
-  // BTTS slight adjust
-  conf += (btts.edge || 0) * 0.25;
+  // BTTS implied + normalized (Yes/No)
+  const invBTTS = [inv(oYes), inv(oNo)];
+  const sumRawBTTS = invBTTS.reduce((a,b)=>a+b,0);
+  const overroundBTTS = sumRawBTTS - 1;
+  const { probs: pBTTS } = normProbs(invBTTS);
+  const PYes = pBTTS[0], PNo = pBTTS[1];
+  const bttsPick = (PYes >= PNo) ? "YES" : "NO";
+  const bttsStrength = Math.abs(PYes - PNo);
 
-  // High margin reduces slightly
-  if (marginPct > 0.12) conf -= 0.03;
+  // ---- Signals (from odds structure) ----
+  const signals = [];
 
-  conf = clamp01(conf);
+  // open/closed game
+  const openGame = (PYes >= 0.55) || (PYes >= 0.50 && top.p <= 0.52);
+  const closedGame = (PNo >= 0.58) || (PNo >= 0.52 && top.p >= 0.55);
+
+  if (openGame) signals.push("OPEN_GAME");
+  if (closedGame) signals.push("CLOSED_GAME");
+
+  // BTTS intensity
+  if (bttsPick === "YES") {
+    signals.push(PYes >= 0.60 ? "BTTS_STRONG" : (PYes >= 0.53 ? "BTTS_SOFT" : "BTTS_WEAK"));
+  } else {
+    signals.push(PNo >= 0.60 ? "NO_BTS_STRONG" : (PNo >= 0.53 ? "NO_BTS_SOFT" : "NO_BTS_WEAK"));
+  }
+
+  // draw trap: draw prob high + low separation
+  if (PX >= 0.30 && strength <= 0.07) signals.push("DRAW_TRAP");
+
+  // coinflip / balanced
+  if (top.p < 0.40) signals.push("COINFLIP");
+
+  // value/risk signal from overround
+  if (overround1x2 <= 0.055) signals.push("LOW_MARGIN");
+  if (overround1x2 >= 0.085) signals.push("HIGH_MARGIN");
+
+  // ---- Pick + confidence ----
+  // base confidence from top prob, penalize overround, reward separation, adjust with BTTS clarity
+  let conf = top.p;
+  conf += clamp(strength * 0.45, 0, 0.06);
+  conf += clamp(bttsStrength * 0.18, 0, 0.04);
+  conf -= clamp(overround1x2 * 0.45, 0, 0.06);
+  conf = clamp(conf, 0.33, 0.78);
+
+  const pick = top.k;
+
+  // suggestion bet (simple)
+  let suggestion = "";
+  if (pick === "X") {
+    suggestion = "Safidy X matetika risika: azonao jerena 1X na X2 raha misy antony.";
+  } else {
+    // if favorite not super strong -> recommend DC
+    if (conf < 0.52) {
+      suggestion = pick === "1"
+        ? "Raha te-hisafidy safe kokoa: 1X (Double Chance)."
+        : "Raha te-hisafidy safe kokoa: X2 (Double Chance).";
+    } else {
+      suggestion = "Azonao atao straight na DC araka ny risk-nao.";
+    }
+  }
 
   return {
+    ok:true,
+    input,
     pick,
     confidence: conf,
-    tags,
-    suggestions,
-    probs,
-    fav: { side: fav.side, odd: fav.odd, type: favType },
-    btts
+    probs1x2: { P1, PX, P2, overround1x2 },
+    btts: { PYes, PNo, bttsPick, overroundBTTS },
+    fav,
+    strength,
+    signals,
+    suggestion
   };
 }
 
-// ========= UI Wiring =========
-const els = {
-  oddHome: document.getElementById("oddHome"),
-  oddDraw: document.getElementById("oddDraw"),
-  oddAway: document.getElementById("oddAway"),
-  oddYes: document.getElementById("oddYes"),
-  oddNo: document.getElementById("oddNo"),
-  note: document.getElementById("note"),
+// Batch-level tags based on relative ranks (top BTTS yes, lowest BTTS yes, highest draw etc.)
+function applyBatchContext(results){
+  const ok = results.filter(r => r.ok);
+  if (ok.length < 2) return results;
 
-  btnPredict: document.getElementById("btnPredict"),
-  btnReset: document.getElementById("btnReset"),
+  const byYes = [...ok].sort((a,b)=>b.btts.PYes - a.btts.PYes);
+  const byNo  = [...ok].sort((a,b)=>b.btts.PNo  - a.btts.PNo );
+  const byDraw= [...ok].sort((a,b)=>b.probs1x2.PX - a.probs1x2.PX);
 
-  alert: document.getElementById("alert"),
-  result: document.getElementById("result"),
+  // tag the extremes
+  byYes[0].signals.push("TOP_BTTS_YES");
+  byYes[byYes.length-1].signals.push("LOW_BTTS_YES");
 
-  pick: document.getElementById("pick"),
-  confidence: document.getElementById("confidence"),
-  badges: document.getElementById("badges"),
+  byNo[0].signals.push("TOP_BTTS_NO");
+  byDraw[0].signals.push("TOP_DRAW");
 
-  p1: document.getElementById("p1"),
-  px: document.getElementById("px"),
-  p2: document.getElementById("p2"),
-  margin: document.getElementById("margin"),
-  fav: document.getElementById("fav"),
-  btts: document.getElementById("btts"),
+  // small cleanup: unique signals
+  results.forEach(r=>{
+    if (!r.ok) return;
+    r.signals = [...new Set(r.signals)];
+  });
 
-  suggestions: document.getElementById("suggestions"),
-  noteOut: document.getElementById("noteOut"),
-};
-
-function showError(msg) {
-  els.alert.textContent = msg;
-  els.alert.classList.remove("hidden");
-  els.result.classList.add("hidden");
+  return results;
 }
 
-function clearError() {
-  els.alert.classList.add("hidden");
-  els.alert.textContent = "";
+// ---------- UI ----------
+function makeRow(i){
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td class="small muted"><b>${i+1}</b></td>
+    <td><input class="inp" data-k="note" placeholder="oh: Match ${i+1} / Ligue 1 / etc"></td>
+    <td><input class="inp" data-k="o1" placeholder="oh: 1,45"></td>
+    <td><input class="inp" data-k="oX" placeholder="oh: 4,21"></td>
+    <td><input class="inp" data-k="o2" placeholder="oh: 7,54"></td>
+    <td><input class="inp" data-k="oYes" placeholder="oh: 2,06"></td>
+    <td><input class="inp" data-k="oNo" placeholder="oh: 1,74"></td>
+  `;
+  tr.dataset.idx = String(i);
+  return tr;
 }
 
-function renderBadges(tags) {
-  els.badges.innerHTML = "";
-  tags.forEach(({t, cls}) => {
-    const s = document.createElement("span");
-    s.className = `badge ${cls || ""}`.trim();
-    s.textContent = t;
-    els.badges.appendChild(s);
+function readRows(){
+  const trs = [...rowsEl.querySelectorAll("tr")];
+  return trs.map(tr=>{
+    const idx = Number(tr.dataset.idx);
+    const inputs = [...tr.querySelectorAll("input")];
+    const obj = { idx, note:"", o1:NaN, oX:NaN, o2:NaN, oYes:NaN, oNo:NaN };
+
+    for (const inp of inputs){
+      const k = inp.dataset.k;
+      if (k === "note") obj.note = inp.value.trim();
+      else obj[k] = parseOdd(inp.value);
+    }
+    return obj;
   });
 }
 
-function renderSuggestions(list) {
-  els.suggestions.innerHTML = "";
-  (list || []).forEach(item => {
-    const li = document.createElement("li");
-    li.textContent = item;
-    els.suggestions.appendChild(li);
+function resetRows(){
+  const inputs = [...rowsEl.querySelectorAll("input")];
+  inputs.forEach(x=> x.value = "");
+  outEl.innerHTML = "";
+  metaEl.textContent = "";
+}
+
+function fillExample(){
+  // Example based on your screenshots style (manova raha ilainao)
+  const ex = [
+    {o1:"3,64", oX:"3,50", o2:"2,00", oYes:"1,69", oNo:"2,13", note:"Ex 1"},
+    {o1:"1,45", oX:"4,21", o2:"7,54", oYes:"2,06", oNo:"1,74", note:"Ex 2"},
+    {o1:"1,87", oX:"3,88", o2:"1,86", oYes:"1,54", oNo:"2,43", note:"Ex 3"},
+    {o1:"2,09", oX:"2,89", o2:"4,24", oYes:"2,27", oNo:"1,62", note:"Ex 4"},
+    {o1:"1,06", oX:"2,65", o2:"1,19", oYes:"2,06", oNo:"1,74", note:"Ex 5"},
+    {o1:"3,06", oX:"3,76", o2:"2,14", oYes:"1,50", oNo:"2,55", note:"Ex 6"},
+    {o1:"2,71", oX:"3,36", o2:"2,55", oYes:"1,67", oNo:"2,17", note:"Ex 7"},
+    {o1:"1,55", oX:"4,03", o2:"5,99", oYes:"1,57", oNo:"2,36", note:"Ex 8"},
+    {o1:"1,36", oX:"5,13", o2:"7,65", oYes:"1,76", oNo:"2,04", note:"Ex 9"},
+  ];
+
+  const trs = [...rowsEl.querySelectorAll("tr")];
+  trs.forEach((tr,i)=>{
+    const d = ex[i] || {};
+    tr.querySelector('input[data-k="note"]').value = d.note || `Match ${i+1}`;
+    tr.querySelector('input[data-k="o1"]').value = d.o1 || "";
+    tr.querySelector('input[data-k="oX"]').value = d.oX || "";
+    tr.querySelector('input[data-k="o2"]').value = d.o2 || "";
+    tr.querySelector('input[data-k="oYes"]').value = d.oYes || "";
+    tr.querySelector('input[data-k="oNo"]').value = d.oNo || "";
   });
 }
 
-function onPredict() {
-  clearError();
+function render(results){
+  outEl.innerHTML = "";
 
-  const o1 = toOdd(els.oddHome.value);
-  const oX = toOdd(els.oddDraw.value);
-  const o2 = toOdd(els.oddAway.value);
-  const yes = toOdd(els.oddYes.value);
-  const no  = toOdd(els.oddNo.value);
+  const okCount = results.filter(r=>r.ok).length;
+  metaEl.textContent = `Matches valid: ${okCount}/${N}`;
 
-  if (!o1 || !oX || !o2) {
-    return showError("Ampidiro tsara ny odds 1X2 (1, X, 2) — tokony > 1 daholo.");
-  }
-  // BTTS optional, fa raha feno iray dia tokony feno roa
-  if ((yes && !no) || (!yes && no)) {
-    return showError("Raha mampiditra G/NG dia fenoy izy roa: Oui sy Non.");
-  }
+  results.forEach(r=>{
+    const card = document.createElement("div");
+    card.className = "result";
 
-  const out = predictFromOdds(o1, oX, o2, yes, no);
+    if (!r.ok){
+      card.innerHTML = `
+        <h3>#${r.input.idx+1} — <span class="muted">${escapeHtml(r.input.note || "Tsy misy fanampiny")}</span></h3>
+        <div class="kv">
+          <span class="muted">Status</span>
+          <b class="pill bad">ERROR</b>
+        </div>
+        <div class="muted small">${escapeHtml(r.error)}</div>
+      `;
+      outEl.appendChild(card);
+      return;
+    }
 
-  // Render main
-  els.pick.textContent = out.pick;
-  els.confidence.textContent = `Confidence: ${(out.confidence * 100).toFixed(0)}%`;
+    const confPct = Math.round(r.confidence * 100);
+    const bttsMain = (r.btts.bttsPick === "YES") ? r.btts.PYes : r.btts.PNo;
 
-  renderBadges(out.tags);
+    const pills = [
+      { t:r.fav, cls: "pill " + (r.fav.includes("HEAVY") ? "good" : (r.fav.includes("BALANCED") ? "warn":"")) },
+      { t:(r.btts.bttsPick === "YES" ? "BTTS_YES" : "BTTS_NO"), cls: "pill " + pillClassByStrength(bttsMain) }
+    ];
 
-  // Probs
-  els.p1.textContent = pct(out.probs.n1);
-  els.px.textContent = pct(out.probs.nX);
-  els.p2.textContent = pct(out.probs.n2);
+    // add signals pills
+    const sigPills = r.signals.map(s=>{
+      const cls =
+        s.includes("TOP_") ? "pill good" :
+        s.includes("HIGH_MARGIN") ? "pill warn" :
+        s.includes("DRAW_TRAP") ? "pill warn" :
+        s.includes("WEAK") ? "pill bad" :
+        "pill";
+      return { t:s, cls };
+    });
 
-  const marginPct = (out.probs.overround - 1) * 100;
-  els.margin.textContent = marginPct.toFixed(1) + "%";
+    card.innerHTML = `
+      <h3>#${r.input.idx+1} — <span class="muted">${escapeHtml(r.input.note || "Match")}</span></h3>
 
-  els.fav.textContent =
-    (out.fav.side === "1" ? "Home" : out.fav.side === "2" ? "Away" : "Equal")
-    + ` (odd ${round2(out.fav.odd)}) — ${out.fav.type}`;
+      <div class="kv">
+        <span class="muted">PICK</span>
+        <b>${outcomeLabel(r.pick)}</b>
+      </div>
 
-  els.btts.textContent = yes && no ? out.btts.label : "NOT PROVIDED";
+      <div class="kv">
+        <span class="muted">Confidence</span>
+        <b>${confPct}%</b>
+      </div>
 
-  renderSuggestions(out.suggestions);
+      <div class="pill-row">
+        ${pills.concat(sigPills).map(p=>`<span class="${p.cls}">${escapeHtml(p.t)}</span>`).join("")}
+      </div>
 
-  const note = (els.note.value || "").trim();
-  els.noteOut.textContent = note ? `Note: ${note}` : "";
+      <div class="probgrid">
+        <div class="prob">
+          <div class="label">Probabilité (1X2 normalized)</div>
+          <div class="val">P(1) ${pct(r.probs1x2.P1)} • P(X) ${pct(r.probs1x2.PX)} • P(2) ${pct(r.probs1x2.P2)}</div>
+        </div>
+        <div class="prob">
+          <div class="label">BTTS (G/NG normalized)</div>
+          <div class="val">Oui ${pct(r.btts.PYes)} • Non ${pct(r.btts.PNo)}</div>
+        </div>
+        <div class="prob">
+          <div class="label">Book Margin (Overround)</div>
+          <div class="val">1X2 ${(r.probs1x2.overround1x2*100).toFixed(1)}% • BTTS ${(r.btts.overroundBTTS*100).toFixed(1)}%</div>
+        </div>
+        <div class="prob">
+          <div class="label">Suggestion</div>
+          <div class="val" style="font-size:14px; font-weight:700; line-height:1.35">
+            ${escapeHtml(r.suggestion)}
+          </div>
+        </div>
+      </div>
+    `;
 
-  els.result.classList.remove("hidden");
+    outEl.appendChild(card);
+  });
 }
 
-function onReset() {
-  clearError();
-  els.result.classList.add("hidden");
-  ["oddHome","oddDraw","oddAway","oddYes","oddNo","note"].forEach(k => (els[k].value = ""));
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
 
-els.btnPredict.addEventListener("click", onPredict);
-els.btnReset.addEventListener("click", onReset);
+// ---------- init ----------
+function init(){
+  rowsEl.innerHTML = "";
+  for (let i=0;i<N;i++) rowsEl.appendChild(makeRow(i));
 
-// Enter key triggers predict
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") onPredict();
-});
+  btnReset.addEventListener("click", resetRows);
+  btnExample.addEventListener("click", ()=>{
+    fillExample();
+    outEl.innerHTML = "";
+    metaEl.textContent = "Example filled. Tsindrio Predict.";
+  });
+
+  btnPredict.addEventListener("click", ()=>{
+    const inputs = readRows();
+    let results = inputs.map(analyzeMatch);
+    results = applyBatchContext(results);
+    render(results);
+  });
+}
+
+init();
