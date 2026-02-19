@@ -1,69 +1,151 @@
+:root{
+  --bg:#0b1220;
+  --card:#101a33;
+  --muted:#aab6d3;
+  --text:#eaf0ff;
+  --line:rgba(255,255,255,.08);
+  --good:#2dd4bf;
+  --warn:#fbbf24;
+  --bad:#fb7185;
+  --btn:#22c55e;
+}
+
+*{box-sizing:border-box}
 body{
-  font-family: Arial, sans-serif;
-  background:#0f172a;
-  color:#fff;
   margin:0;
-  padding:20px;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+  background:linear-gradient(180deg,#070b14 0%, #0b1220 40%, #070b14 100%);
+  color:var(--text);
 }
+.topbar{
+  padding:18px 16px;
+  border-bottom:1px solid var(--line);
+}
+h1{margin:0 0 4px 0; font-size:18px}
+.sub{margin:0; color:var(--muted); font-size:13px}
 
-.container{
-  max-width:520px;
+.wrap{
+  max-width:980px;
   margin:0 auto;
+  padding:16px;
+  display:grid;
+  grid-template-columns:1fr;
+  gap:14px;
 }
-
-h1{ margin:10px 0 6px; }
-.sub{ opacity:.85; margin:0 0 16px; font-size:14px; }
-
+@media(min-width:900px){
+  .wrap{grid-template-columns:1fr 1fr}
+}
 .card{
-  background:#111c3a;
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:14px;
+  background:rgba(16,26,51,.9);
+  border:1px solid var(--line);
+  border-radius:16px;
   padding:14px;
-  margin:12px 0;
+  box-shadow:0 18px 50px rgba(0,0,0,.35);
 }
-
-label{ display:block; margin:10px 0 6px; opacity:.9; }
-
-input{
-  width:100%;
-  padding:12px;
-  border-radius:10px;
-  border:none;
-  outline:none;
-}
-
-button{
-  width:100%;
-  margin-top:12px;
-  padding:12px;
-  border:none;
-  border-radius:10px;
-  background:#22c55e;
-  color:#fff;
-  font-weight:700;
-  font-size:16px;
-}
-
-button:active{ transform:scale(.99); }
+h2{margin:0 0 10px 0; font-size:15px}
+h3{margin:10px 0 8px 0; font-size:14px; color:var(--muted)}
 
 .grid{
   display:grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns:1fr;
   gap:10px;
-  margin-top:10px;
 }
-
-.box{
-  background:rgba(255,255,255,.06);
+@media(min-width:520px){
+  .grid{grid-template-columns:1fr 1fr}
+}
+.field label{
+  display:block;
+  font-size:12px;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+.field input{
+  width:100%;
+  padding:12px 12px;
   border-radius:12px;
-  padding:12px;
-  text-align:center;
+  border:1px solid var(--line);
+  background:rgba(7,11,20,.6);
+  color:var(--text);
+  outline:none;
 }
+.field input:focus{border-color:rgba(34,197,94,.5)}
 
-.k{ font-size:12px; opacity:.85; }
-.v{ font-size:18px; font-weight:800; margin-top:6px; }
+.actions{
+  margin-top:12px;
+  display:flex;
+  gap:10px;
+}
+button{
+  border:0;
+  border-radius:12px;
+  padding:12px 14px;
+  font-weight:700;
+  cursor:pointer;
+}
+button#btnPredict{background:var(--btn); color:#07210f}
+button.ghost{background:transparent; color:var(--muted); border:1px solid var(--line)}
 
-.meta{ margin:12px 0 0; opacity:.9; }
-.pick{ margin:8px 0 0; font-size:16px; }
+.hint{margin:10px 0 0 0; color:var(--muted); font-size:12px}
 
-.footer{ opacity:.8; margin-top:10px; text-align:center; }
+.alert{
+  padding:12px;
+  border-radius:12px;
+  border:1px solid rgba(251,113,133,.35);
+  background:rgba(251,113,133,.12);
+  color:#ffd6de;
+  font-size:13px;
+}
+.hidden{display:none}
+
+.result .row{
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  justify-content:space-between;
+}
+.big .label{color:var(--muted); font-size:12px}
+.big .value{font-size:20px; font-weight:900; margin-top:6px}
+.big .meta{color:var(--muted); margin-top:4px; font-size:12px}
+
+.badges{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+.badge{
+  font-size:12px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:rgba(7,11,20,.55);
+}
+.badge.good{border-color:rgba(45,212,191,.35); color:#bffaf2}
+.badge.warn{border-color:rgba(251,191,36,.35); color:#ffe7a3}
+.badge.bad{border-color:rgba(251,113,133,.35); color:#ffd6de}
+
+hr{border:0; border-top:1px solid var(--line); margin:12px 0}
+
+.grid3{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+  margin-top:8px;
+}
+@media(min-width:520px){
+  .grid3{grid-template-columns:repeat(3,1fr)}
+}
+.mini{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+  background:rgba(7,11,20,.45);
+}
+.mini .k{font-size:12px; color:var(--muted)}
+.mini .v{font-size:15px; font-weight:800; margin-top:6px}
+
+.list{margin:8px 0 0 16px; color:var(--text)}
+.note{margin-top:10px; color:var(--muted); font-size:12px}
+
+.footer{
+  padding:14px 16px;
+  color:var(--muted);
+  font-size:12px;
+  text-align:center;
+  border-top:1px solid var(--line);
+}
