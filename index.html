@@ -1,68 +1,68 @@
-<!DOCTYPE html>
-<html lang="mg">
+<!doctype html>
+<html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Predictor 🧠 (Odds Signal + Probabilité) — Match 9</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Predictor - French Virtual League</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="wrap">
-    <header class="hero">
-      <h1>Predictor 🧠 <span class="muted">(Odds Signal + Probabilité)</span></h1>
-      <p class="subtitle">
-        Ampidiro ny odds <b>1X2</b> + <b>G/NG</b> ho an’ny <b>Match 9</b> → mivoaka <b>Signal</b> + <b>Probabilité</b> + <b>Pick</b>.
-      </p>
-      <div class="note">
-        ⚠️ Fanamarihana: fitaovana “analysis” fotsiny ity (tsy garantie). Mifehy risika foana.
+  <header class="topbar">
+    <h1>Predictor - French Virtual League</h1>
+    <p class="sub">Dataset: <code>data/france_virtual_league.csv</code></p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <div class="controls">
+        <label>
+          Mode:
+          <select id="mode">
+            <option value="1x2" selected>1X2</option>
+            <option value="gng">G / NG</option>
+            <option value="score">Score Exact</option>
+          </select>
+        </label>
+
+        <label>
+          Home:
+          <input id="homeTeam" placeholder="ex: Paris SG" />
+        </label>
+
+        <label>
+          Away:
+          <input id="awayTeam" placeholder="ex: Brest" />
+        </label>
+
+        <button id="predictBtn">Predict</button>
       </div>
-    </header>
+
+      <div id="result" class="result">
+        <p>Safidio ny mode, fenoy Home/Away dia tsindrio Predict.</p>
+      </div>
+    </section>
 
     <section class="card">
-      <div class="card-head">
-        <h2>Input — Match 9</h2>
-        <div class="actions">
-          <button id="fillExample" class="btn ghost">Example</button>
-          <button id="resetAll" class="btn ghost">Reset</button>
-          <button id="predictAll" class="btn primary">Predict 🧠</button>
-        </div>
-      </div>
-
-      <div class="hint">
-        ✅ Manaiky <b>virgule</b> na <b>point</b>: ohatra <code>3,64</code> na <code>3.64</code>  
-        — Odds rehetra tokony ho &gt; <b>1.00</b>.
-      </div>
-
+      <h2>Matches (from CSV)</h2>
       <div class="table-wrap">
-        <table class="odds-table">
+        <table id="matchesTable">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Fanampiny (optional)</th>
-              <th>1 (Home)</th>
-              <th>X (Draw)</th>
-              <th>2 (Away)</th>
-              <th>G/NG — Oui</th>
-              <th>G/NG — Non</th>
+              <th>Journée</th>
+              <th>Home</th>
+              <th>Away</th>
+              <th>Odd 1</th>
+              <th>Odd X</th>
+              <th>Odd 2</th>
+              <th>Odd G</th>
+              <th>Odd NG</th>
             </tr>
           </thead>
-          <tbody id="rows"></tbody>
+          <tbody></tbody>
         </table>
       </div>
     </section>
-
-    <section class="card">
-      <div class="card-head">
-        <h2>Output</h2>
-        <div class="muted small" id="meta"></div>
-      </div>
-      <div id="out" class="out-grid"></div>
-    </section>
-
-    <footer class="footer">
-      <span class="muted small">Build: Match-9 Odds Signal Engine • 1X2 + BTTS(G/NG)</span>
-    </footer>
-  </div>
+  </main>
 
   <script src="script.js"></script>
 </body>
