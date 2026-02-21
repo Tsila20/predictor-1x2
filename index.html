@@ -1,50 +1,44 @@
-<!doctype html>
-<html lang="fr">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Predictor - French Virtual League</title>
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-  <header class="topbar">
+  <div class="container">
     <h1>Predictor - French Virtual League</h1>
-    <p class="sub">Dataset: <code>data/france_virtual_league.csv</code></p>
-  </header>
+    <p class="subtitle">Ampidiro ny Odds 1 / X / 2 dia mahazo Résultat + % + Score Exact.</p>
 
-  <main class="container">
-    <section class="card">
-      <div class="controls">
-        <label>
-          Mode:
-          <select id="mode">
-            <option value="1x2" selected>1X2</option>
-            <option value="gng">G / NG</option>
-            <option value="score">Score Exact</option>
-          </select>
-        </label>
+    <div class="card">
+      <label for="mode">Mode:</label>
+      <select id="mode">
+        <option value="1x2">1X2</option>
+        <option value="exact">Score Exact</option>
+      </select>
 
-        <label>
-          Home:
-          <input id="homeTeam" placeholder="ex: Paris SG" />
-        </label>
+      <label>Odd 1 (Home)</label>
+      <input id="odd1" type="number" step="0.01" placeholder="ex: 2.30" />
 
-        <label>
-          Away:
-          <input id="awayTeam" placeholder="ex: Brest" />
-        </label>
+      <label>Odd X (Draw)</label>
+      <input id="oddX" type="number" step="0.01" placeholder="ex: 5.00" />
 
-        <button id="predictBtn">Predict</button>
+      <label>Odd 2 (Away)</label>
+      <input id="odd2" type="number" step="0.01" placeholder="ex: 3.40" />
+
+      <button id="predictBtn">Predict</button>
+
+      <div id="resultBox" class="result">
+        Safidio mode, fenoy ny odds, dia tsindrio Predict.
       </div>
+    </div>
 
-      <div id="result" class="result">
-        <p>Safidio ny mode, fenoy Home/Away dia tsindrio Predict.</p>
-      </div>
-    </section>
-
-    <section class="card">
+    <div class="card">
       <h2>Matches (from CSV)</h2>
-      <div class="table-wrap">
+      <p class="subtitle">Dataset: <code>data/france_virtual_league.csv</code></p>
+      <div class="tableWrap">
         <table id="matchesTable">
           <thead>
             <tr>
@@ -61,8 +55,8 @@
           <tbody></tbody>
         </table>
       </div>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>
