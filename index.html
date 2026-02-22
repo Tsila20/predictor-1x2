@@ -3,13 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Predictor - French Virtual League</title>
+
+  <!-- ✅ Title -->
+  <title>Predictor Bet261 - French Virtual League</title>
+
+  <!-- ✅ Bet261 Colors -->
+  <meta name="theme-color" content="#16a34a" />
+  <meta name="description" content="Predictor Bet261 - Ampidiro ny Odds 1/X/2 dia mahazo Résultat + % + Score Exact." />
+
+  <!-- ✅ ICON (Remove Google G on Add to Home Screen) -->
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+  <link rel="apple-touch-icon" href="icon-512.png" />
+
+  <!-- ✅ PWA manifest -->
+  <link rel="manifest" href="manifest.json" />
+
+  <!-- ✅ CSS -->
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
   <div class="container">
-    <h1>Predictor - French Virtual League</h1>
+    <h1>Predictor <span class="bet261-badge">BET261</span></h1>
     <p class="subtitle">Ampidiro ny Odds 1 / X / 2 dia mahazo Résultat + % + Score Exact.</p>
 
     <div class="card">
@@ -20,15 +35,15 @@
       </select>
 
       <label>Odd 1 (Home)</label>
-      <input id="odd1" type="number" step="0.01" placeholder="ex: 2.30" />
+      <input id="odd1" type="text" inputmode="decimal" placeholder="ex: 2.30 na 2,30" />
 
       <label>Odd X (Draw)</label>
-      <input id="oddX" type="number" step="0.01" placeholder="ex: 5.00" />
+      <input id="oddX" type="text" inputmode="decimal" placeholder="ex: 5.00 na 5,00" />
 
       <label>Odd 2 (Away)</label>
-      <input id="odd2" type="number" step="0.01" placeholder="ex: 3.40" />
+      <input id="odd2" type="text" inputmode="decimal" placeholder="ex: 3.40 na 3,40" />
 
-      <button id="predictBtn">Predict</button>
+      <button id="predictBtn" class="btn-bet261">Predict</button>
 
       <div id="resultBox" class="result">
         Safidio mode, fenoy ny odds, dia tsindrio Predict.
@@ -56,6 +71,8 @@
         </table>
       </div>
     </div>
+
+    <p class="footer-bet261">⚡ Predictor Bet261 • Smart Betting • Data Mode</p>
   </div>
 
   <script src="script.js"></script>
