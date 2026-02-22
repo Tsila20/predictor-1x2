@@ -12,8 +12,9 @@
   // Support "2,30" sy "2.30"
   function toNumber(val) {
     if (val == null) return NaN;
-    const s = String(val).trim().replace(",", ".");
-    return Number(s);
+    const s = String(val).trim().replace(/\s+/g, "").replace(",", ".");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
   }
 
   function percent(x) {
@@ -37,24 +38,71 @@
 
   function exactScoreFromProbs(p) {
     const out = pickOutcome(p);
-    if (out.key === "X") return p.px > 0.38 ? "1 - 1" : "0 - 0";
-    if (out.key === "1") return p.p1 >= 0.60 ? "2 - 0" : p.p1 >= 0.52 ? "2 - 1" : "1 - 0";
-    return p.p2 >= 0.60 ? "0 - 2" : p.p2 >= 0.52 ? "1 - 2" : "0 - 1";
+    if (out.key === "X") return p.px > 0.38 ? "1-1" : "0-0";
+    if (out.key === "1") return p.p1 >= 0.60 ? "2-0" : p.p1 >= 0.52 ? "2-1" : "1-0";
+    return p.p2 >= 0.60 ? "0-2" : p.p2 >= 0.52 ? "1-2" : "0-1";
   }
 
   // -------- CSV / DATA --------
   let DATA = [];
   let DATA_READY = false;
 
-  function parseCSVSimple(text) {
-    const lines = text.trim().split(/\r?\n/);
-    const headers = lines[0].split(",").map((h) => h.trim());
+  function stripBOM(text) {
+    return text.replace(/^\uFEFF/, "");
+  }
+
+  // detect delimiter on header line: ; or ,
+  function detectDelimiter(headerLine) {
+    const semi = headerLine.split(";").length;
+    const comma = headerLine.split(",").length;
+    return semi > comma ? ";" : ",";
+  }
+
+  // parse a CSV line that may contain quotes
+  function splitCSVLine(line, delim) {
+    const out = [];
+    let cur = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+
+      if (ch === '"') {
+        // handle escaped quotes ""
+        if (inQuotes && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+        continue;
+      }
+
+      if (!inQuotes && ch === delim) {
+        out.push(cur.trim());
+        cur = "";
+        continue;
+      }
+
+      cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  }
+
+  function parseCSVSmart(text) {
+    text = stripBOM(text);
+    const lines = text.trim().split(/\r?\n/).filter(Boolean);
+    if (!lines.length) return [];
+
+    const delim = detectDelimiter(lines[0]);
+    const headers = splitCSVLine(lines[0], delim).map((h) => h.trim());
 
     const rows = [];
     for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      const values = line.split(",");
+      const values = splitCSVLine(lines[i], delim);
+      if (!values.length) continue;
+
       const obj = {};
       headers.forEach((h, idx) => (obj[h] = (values[idx] ?? "").trim()));
       rows.push(obj);
@@ -62,29 +110,48 @@
     return rows;
   }
 
+  // normalize headers: accept variations
+  function pickField(obj, candidates) {
+    for (const k of candidates) {
+      if (obj[k] != null && String(obj[k]).trim() !== "") return obj[k];
+    }
+    return "";
+  }
+
   async function loadCSV() {
-    const url = "./data/france_virtual_league.csv"; // ✅ mifanaraka amin'ny index.html
+    const url = "./data/france_virtual_league.csv";
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error("CSV tsy voa-load: " + res.status);
 
     const text = await res.text();
-    const rows = parseCSVSimple(text);
+    const raw = parseCSVSmart(text);
 
-    rows.forEach((r) => {
-      r.journee = (r.journee || "").trim();
-      r.home = (r.home || "").trim();
-      r.away = (r.away || "").trim();
+    // map fields safely (raha samy hafa ny header)
+    const rows = raw.map((r) => {
+      const out = {};
 
-      r.odd_1 = toNumber(r.odd_1);
-      r.odd_x = toNumber(r.odd_x);
-      r.odd_2 = toNumber(r.odd_2);
-      r.odd_g = toNumber(r.odd_g);
-      r.odd_ng = toNumber(r.odd_ng);
+      out.journee = pickField(r, ["journee", "Journee", "Journée", "JOURNEE"]);
+      out.home = pickField(r, ["home", "Home", "HOME"]);
+      out.away = pickField(r, ["away", "Away", "AWAY"]);
 
-      r.result = (r.result || "").trim(); // score ex: "1-0"
+      out.odd_1 = toNumber(pickField(r, ["odd_1", "Odd1", "odd1", "Odd 1", "Odd_1"]));
+      out.odd_x = toNumber(pickField(r, ["odd_x", "OddX", "oddx", "Odd X", "Odd_X"]));
+      out.odd_2 = toNumber(pickField(r, ["odd_2", "Odd2", "odd2", "Odd 2", "Odd_2"]));
+
+      out.odd_g = toNumber(pickField(r, ["odd_g", "OddG", "oddg", "Odd G", "Odd_G"]));
+      out.odd_ng = toNumber(pickField(r, ["odd_ng", "OddNG", "oddng", "Odd NG", "Odd_NG"]));
+
+      out.result = pickField(r, ["result", "Result", "score", "Score", "RESULT"]);
+
+      return out;
     });
 
-    return rows.filter((r) => Number.isFinite(r.odd_1) && Number.isFinite(r.odd_x) && Number.isFinite(r.odd_2));
+    // keep only valid odds rows
+    const clean = rows.filter(
+      (r) => Number.isFinite(r.odd_1) && Number.isFinite(r.odd_x) && Number.isFinite(r.odd_2)
+    );
+
+    return clean;
   }
 
   function renderTable(rows, limit = 50) {
@@ -164,11 +231,11 @@
       const oddXEl = $("oddX");
       const odd2El = $("odd2");
 
-      const mode = modeEl.value; // "1x2" na "exact"
+      const mode = modeEl ? modeEl.value : "1x2"; // "1x2" na "exact"
 
-      const o1 = toNumber(odd1El.value);
-      const ox = toNumber(oddXEl.value);
-      const o2 = toNumber(odd2El.value);
+      const o1 = toNumber(odd1El ? odd1El.value : "");
+      const ox = toNumber(oddXEl ? oddXEl.value : "");
+      const o2 = toNumber(odd2El ? odd2El.value : "");
 
       if (!Number.isFinite(o1) || !Number.isFinite(ox) || !Number.isFinite(o2) || o1 <= 1 || ox <= 1 || o2 <= 1) {
         show("⚠️ Fenoy tsara ny Odds (oh: 2.30 na 2,30) ary tsy tokony ho latsaky ny 1.01.");
@@ -227,13 +294,17 @@
       DATA_READY = true;
       console.log("✅ DATA LOADED:", DATA.length);
       renderTable(DATA, 50);
+
+      // raha tianao: message kely fa voa-load
+      // show(`✅ DATA voa-load: ${DATA.length} rows`);
     } catch (e) {
       DATA_READY = false;
       console.warn("⚠️ DATA tsy voa-load:", e.message);
-      // show("⚠️ DATA tsy voa-load: " + e.message); // raha tianao hiseho amin'ny UI
+      show("⚠️ DATA tsy voa-load: " + e.message);
     }
 
-    btn.addEventListener("click", onPredict);
+    if (btn) btn.addEventListener("click", onPredict);
+    else console.warn("⚠️ predictBtn tsy hita ao amin'ny HTML");
   }
 
   document.addEventListener("DOMContentLoaded", boot);
