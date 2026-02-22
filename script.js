@@ -12,6 +12,7 @@
   function toNumber(val) {
     if (val == null) return NaN;
     const s = String(val).trim().replace(/\s+/g, "").replace(",", ".");
+    if (!s || s.toUpperCase() === "NA") return NaN;
     const n = Number(s);
     return Number.isFinite(n) ? n : NaN;
   }
@@ -42,7 +43,8 @@
   }
 
   // -------- CSV / DATA --------
-  let DATA = [];
+  let DATA_ALL = [];    // ho an'ny table (rows rehetra)
+  let DATA_MODEL = [];  // ho an'ny AI (rows misy odds 1X2 feno)
   let DATA_READY = false;
 
   function stripBOM(text) {
@@ -118,7 +120,8 @@
   }
 
   async function loadCSV() {
-    const url = "./data/france_virtual_league.csv";
+    // ✅ cache-busting + no-store
+    const url = "./data/france_virtual_league.csv?v=" + Date.now();
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error("CSV tsy voa-load: " + res.status);
 
@@ -128,6 +131,7 @@
     const rows = raw.map((r) => {
       const out = {};
 
+      out.league = pickField(r, ["league", "League", "LEAGUE"]);
       out.journee = pickField(r, ["journee", "Journee", "Journée", "JOURNEE"]);
       out.journee_num = journeeToNumber(out.journee);
 
@@ -146,12 +150,22 @@
       return out;
     });
 
-    return rows.filter(
+    // ✅ rows rehetra ho an'ny table
+    const all = rows;
+
+    // ✅ rows feno odds 1X2 ho an'ny AI/predict
+    const model = rows.filter(
       (r) => Number.isFinite(r.odd_1) && Number.isFinite(r.odd_x) && Number.isFinite(r.odd_2)
     );
+
+    // ✅ sort: journee lehibe aloha (mba hiseho 36->33 etc)
+    all.sort((a, b) => (b.journee_num ?? -1) - (a.journee_num ?? -1));
+    model.sort((a, b) => (b.journee_num ?? -1) - (a.journee_num ?? -1));
+
+    return { all, model };
   }
 
-  function renderTable(rows, limit = 200) {
+  function renderTable(rows, limit = 500) {
     const tbody = document.querySelector("#matchesTable tbody");
     if (!tbody) return;
 
@@ -159,14 +173,14 @@
     rows.slice(0, limit).forEach((r) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${r.journee || "-"}</td>
+        <td>${Number.isFinite(r.journee_num) ? r.journee_num : (r.journee || "-")}</td>
         <td>${r.home || "-"}</td>
         <td>${r.away || "-"}</td>
-        <td>${Number.isFinite(r.odd_1) ? r.odd_1 : "-"}</td>
-        <td>${Number.isFinite(r.odd_x) ? r.odd_x : "-"}</td>
-        <td>${Number.isFinite(r.odd_2) ? r.odd_2 : "-"}</td>
-        <td>${Number.isFinite(r.odd_g) ? r.odd_g : "-"}</td>
-        <td>${Number.isFinite(r.odd_ng) ? r.odd_ng : "-"}</td>
+        <td>${Number.isFinite(r.odd_1) ? r.odd_1 : "NA"}</td>
+        <td>${Number.isFinite(r.odd_x) ? r.odd_x : "NA"}</td>
+        <td>${Number.isFinite(r.odd_2) ? r.odd_2 : "NA"}</td>
+        <td>${Number.isFinite(r.odd_g) ? r.odd_g : "NA"}</td>
+        <td>${Number.isFinite(r.odd_ng) ? r.odd_ng : "NA"}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -182,21 +196,18 @@
     return "X";
   }
 
-  // ✅ NEW: ampiasaina daholo DATA fa misy "weight" araka ny akaiky odds
+  // ✅ Weighted stats uses DATA_MODEL (only valid odds rows)
   function weightedStatsFromData(o1, ox, o2) {
     const eps = 1e-6;
 
-    let wSum = 0;
     let w1 = 0, wX = 0, w2 = 0;
     const scoreCounts = new Map();
 
     let jMin = Infinity, jMax = -Infinity;
     let used = 0;
 
-    for (const r of DATA) {
+    for (const r of DATA_MODEL) {
       const d = Math.abs(r.odd_1 - o1) + Math.abs(r.odd_x - ox) + Math.abs(r.odd_2 - o2);
-
-      // weight: akaiky => lehibe
       const w = 1 / (d + eps);
 
       const out = outcomeFromScore(r.result);
@@ -214,17 +225,14 @@
         jMax = Math.max(jMax, r.journee_num);
       }
 
-      wSum += w;
       used++;
     }
 
-    // probs
     const denom = (w1 + wX + w2) || 1;
     const p1 = w1 / denom;
     const px = wX / denom;
     const p2 = w2 / denom;
 
-    // best score by weighted frequency
     let bestScore = "";
     let bestW = -1;
     for (const [sc, ww] of scoreCounts.entries()) {
@@ -262,8 +270,7 @@
         return;
       }
 
-      // ✅ Dataset mode (WEIGHTED)
-      if (DATA_READY && DATA.length > 0) {
+      if (DATA_READY && DATA_MODEL.length > 0) {
         const s = weightedStatsFromData(o1, ox, o2);
 
         const out = pickOutcome({ p1: s.p1, px: s.px, p2: s.p2 });
@@ -278,7 +285,7 @@
           show(
             `🎯 <b>Score Exact (from DATA):</b> <b>${score}</b><br/>` +
             `${journeeInfo}` +
-            `<small>Rows nampiasaina (DATA manontolo): ${s.used}</small>`
+            `<small>Rows nampiasaina (DATA): ${s.used}</small>`
           );
           return;
         }
@@ -288,12 +295,11 @@
           📊 <b>%</b> Home: <b>${percent(s.p1)}</b> | Draw: <b>${percent(s.px)}</b> | Away: <b>${percent(s.p2)}</b><br/>
           🎯 <b>Score Exact (from DATA):</b> <b>${score}</b><br/>
           ${journeeInfo}
-          <small>Rows nampiasaina (DATA manontolo): ${s.used}</small>
+          <small>Rows nampiasaina (DATA): ${s.used}</small>
         `);
         return;
       }
 
-      // 🔁 Fallback
       const p = impliedProbs(o1, ox, o2);
       const out = pickOutcome(p);
       const score = exactScoreFromProbs(p);
@@ -319,10 +325,16 @@
     const btn = $("predictBtn");
 
     try {
-      DATA = await loadCSV();
+      const loaded = await loadCSV();
+      DATA_ALL = loaded.all;
+      DATA_MODEL = loaded.model;
       DATA_READY = true;
-      console.log("✅ DATA LOADED:", DATA.length);
-      renderTable(DATA, 200);
+
+      console.log("✅ DATA ALL:", DATA_ALL.length);
+      console.log("✅ DATA MODEL:", DATA_MODEL.length);
+
+      // ✅ table mampiseho ALL (anisan'izany NA)
+      renderTable(DATA_ALL, 500);
     } catch (e) {
       DATA_READY = false;
       console.warn("⚠️ DATA tsy voa-load:", e.message);
