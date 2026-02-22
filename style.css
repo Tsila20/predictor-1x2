@@ -135,3 +135,34 @@ tr:hover {
     font-size: 18px;
   }
 }
+.bet261-badge{
+  display:inline-block;
+  margin-left:8px;
+  padding:6px 12px;
+  border-radius:999px;
+  font-weight:800;
+  letter-spacing:1px;
+  background: linear-gradient(90deg, #16a34a, #facc15);
+  color:#0b1020;
+  box-shadow: 0 0 18px rgba(34,197,94,.35);
+}
+
+.btn-bet261{
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+  border:none;
+  border-radius:14px;
+  font-weight:800;
+  letter-spacing:.5px;
+  box-shadow: 0 10px 30px rgba(34,197,94,.25);
+}
+
+.btn-bet261:hover{
+  filter: brightness(1.05);
+}
+
+.footer-bet261{
+  opacity:.8;
+  text-align:center;
+  margin-top:12px;
+  font-size:12px;
+}
