@@ -40,6 +40,10 @@
     return p.p2 >= 0.60 ? "0-2" : p.p2 >= 0.52 ? "1-2" : "0-1";
   }
 
+  // ✅ RANGE JOURNÉE (19 → 41)
+  const J_MIN = 19;
+  const J_MAX = 41;
+
   // -------- CSV parser --------
   let DATA_ALL = [];
   let DATA_MODEL = [];
@@ -88,21 +92,18 @@
 
   function parseCSVSmart(text) {
     text = stripBOM(text);
-    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     if (!lines.length) return [];
 
-    // ✅ remove duplicated header lines anywhere
     const headerLine = lines[0];
     const delim = detectDelimiter(headerLine);
-    const headers = splitCSVLine(headerLine, delim).map(h => h.trim());
+    const headers = splitCSVLine(headerLine, delim).map((h) => h.trim());
 
     const headerJoined = headers.join(delim).toLowerCase();
 
     const rows = [];
     for (let i = 1; i < lines.length; i++) {
       const lineLower = lines[i].toLowerCase();
-      // skip any repeated headers
       if (lineLower.replace(/\s+/g, "") === headerJoined.replace(/\s+/g, "")) continue;
 
       const values = splitCSVLine(lines[i], delim);
@@ -130,8 +131,7 @@
   }
 
   async function loadCSV() {
-    // ✅ cache busting
-    const url = "./data/france_virtual_league.csv?v=" + Date.now();
+    const url = "./data/france_virtual_league.csv?v=" + Date.now(); // cache busting
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error("CSV tsy voa-load: " + res.status);
 
@@ -160,9 +160,14 @@
       return out;
     });
 
-    const all = rows;
+    // ✅ Filtre Journée 19 → 41 (ALL + MODEL)
+    const inRange = (r) =>
+      Number.isFinite(r.journee_num) && r.journee_num >= J_MIN && r.journee_num <= J_MAX;
 
-    const model = rows.filter(
+    const all = rows.filter(inRange);
+
+    // MODEL: mila odds 1X2 (result mety NA, fa ny stats ihany no tsy hanisa azy)
+    const model = all.filter(
       (r) => Number.isFinite(r.odd_1) && Number.isFinite(r.odd_x) && Number.isFinite(r.odd_2)
     );
 
@@ -198,8 +203,12 @@
   }
 
   function outcomeFromScore(scoreStr) {
-    const m = String(scoreStr || "").match(/(\d+)\s*-\s*(\d+)/);
+    const s = String(scoreStr || "").trim();
+    if (!s || s.toUpperCase() === "NA") return null;
+
+    const m = s.match(/(\d+)\s*-\s*(\d+)/);
     if (!m) return null;
+
     const h = Number(m[1]), a = Number(m[2]);
     if (h > a) return "1";
     if (h < a) return "2";
@@ -230,7 +239,8 @@
         else if (out === "X") wX += w;
         else if (out === "2") w2 += w;
 
-        scoreCounts.set(r.result.trim(), (scoreCounts.get(r.result.trim()) || 0) + w);
+        const key = r.result.trim();
+        scoreCounts.set(key, (scoreCounts.get(key) || 0) + w);
       }
 
       if (Number.isFinite(r.journee_num)) {
@@ -248,7 +258,7 @@
     }
 
     return {
-      ok: denom > 0 && usedWithResult > 10, // ✅ mila result ampy vao tena manankery
+      ok: denom > 0 && usedWithResult > 10,
       p1: denom > 0 ? w1 / denom : 0,
       px: denom > 0 ? wX / denom : 0,
       p2: denom > 0 ? w2 / denom : 0,
@@ -278,9 +288,7 @@
         const s = weightedStatsFromData(o1, ox, o2);
 
         const journeeInfo =
-          (s.jMin != null && s.jMax != null)
-            ? `<small>Journée ao anaty CSV: ${s.jMin} → ${s.jMax}</small><br/>`
-            : "";
+          `<small>Range ampiasaina: ${J_MIN} → ${J_MAX}</small><br/>`;
 
         // Raha tsy ampy result dia fallback impliedProbs fa mbola manome info
         if (!s.ok) {
@@ -293,7 +301,7 @@
             📊 <b>%</b> Home: <b>${percent(p.p1)}</b> | Draw: <b>${percent(p.px)}</b> | Away: <b>${percent(p.p2)}</b><br/>
             🎯 <b>Score Exact (fallback):</b> <b>${score}</b><br/>
             ${journeeInfo}
-            <small>Rows total: ${s.used} | Rows misy result: ${s.usedWithResult} (tsy ampy)</small>
+            <small>Rows model: ${s.used} | Rows misy result: ${s.usedWithResult} (tsy ampy)</small>
           `);
           return;
         }
@@ -305,7 +313,7 @@
           show(
             `🎯 <b>Score Exact (from DATA):</b> <b>${score}</b><br/>` +
             `${journeeInfo}` +
-            `<small>Rows: ${s.used} | Rows misy result: ${s.usedWithResult}</small>`
+            `<small>Rows model: ${s.used} | Rows misy result: ${s.usedWithResult}</small>`
           );
           return;
         }
@@ -315,7 +323,7 @@
           📊 <b>%</b> Home: <b>${percent(s.p1)}</b> | Draw: <b>${percent(s.px)}</b> | Away: <b>${percent(s.p2)}</b><br/>
           🎯 <b>Score Exact (from DATA):</b> <b>${score}</b><br/>
           ${journeeInfo}
-          <small>Rows: ${s.used} | Rows misy result: ${s.usedWithResult}</small>
+          <small>Rows model: ${s.used} | Rows misy result: ${s.usedWithResult}</small>
         `);
         return;
       }
@@ -343,17 +351,21 @@
       DATA_MODEL = loaded.model;
       DATA_READY = true;
 
-      console.log("✅ DATA_ALL:", DATA_ALL.length);
-      console.log("✅ DATA_MODEL:", DATA_MODEL.length);
+      console.log("✅ DATA_ALL (range):", DATA_ALL.length);
+      console.log("✅ DATA_MODEL (range):", DATA_MODEL.length);
 
-      // ✅ render all rows so 33-36 show
       renderTable(DATA_ALL, 500);
 
-      // ✅ show quick info on page
       if ($("resultBox")) {
-        const jMin = Math.min(...DATA_ALL.map(r => r.journee_num).filter(Number.isFinite));
-        const jMax = Math.max(...DATA_ALL.map(r => r.journee_num).filter(Number.isFinite));
-        show(`✅ DATA OK. Journée ao: <b>${jMin} → ${jMax}</b> | Rows: <b>${DATA_ALL.length}</b>`);
+        const nums = DATA_ALL.map((r) => r.journee_num).filter(Number.isFinite);
+        const jMin = nums.length ? Math.min(...nums) : null;
+        const jMax = nums.length ? Math.max(...nums) : null;
+
+        show(
+          `✅ DATA OK. Range: <b>${J_MIN} → ${J_MAX}</b>` +
+          (jMin != null && jMax != null ? ` | Journée ao: <b>${jMin} → ${jMax}</b>` : "") +
+          ` | Rows: <b>${DATA_ALL.length}</b>`
+        );
       }
     } catch (e) {
       DATA_READY = false;
