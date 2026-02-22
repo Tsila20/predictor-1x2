@@ -7,8 +7,8 @@
 }
 
 body {
-  background: linear-gradient(135deg, #0f172a, #1e293b);
-  color: #f1f5f9;
+  background: #f8fafc; /* ✅ FOND FOTSY */
+  color: #0f172a;
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -26,23 +26,24 @@ h1 {
   text-align: center;
   margin-bottom: 10px;
   font-size: 22px;
+  color: #0f172a;
 }
 
 .subtitle {
   text-align: center;
   font-size: 13px;
-  color: #94a3b8;
+  color: #64748b;
   margin-bottom: 20px;
 }
 
 /* CARD */
 .card {
-  background: #1e293b;
+  background: #ffffff; /* ✅ CARD FOTSY */
   padding: 20px;
-  border-radius: 14px;
+  border-radius: 16px;
   margin-bottom: 20px;
-  box-shadow: 0 0 25px rgba(0, 0, 0, 0.4);
-  border: 1px solid #334155;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
 }
 
 /* FORM ELEMENTS */
@@ -50,7 +51,7 @@ label {
   font-size: 13px;
   margin-top: 12px;
   display: block;
-  color: #cbd5e1;
+  color: #334155;
 }
 
 input,
@@ -58,10 +59,10 @@ select {
   width: 100%;
   padding: 10px;
   margin-top: 5px;
-  border-radius: 8px;
-  border: 1px solid #334155;
-  background: #0f172a;
-  color: white;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
   outline: none;
   transition: 0.2s;
 }
@@ -69,7 +70,7 @@ select {
 input:focus,
 select:focus {
   border-color: #22c55e;
-  box-shadow: 0 0 8px #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
 }
 
 /* BUTTON */
@@ -77,10 +78,10 @@ button {
   width: 100%;
   margin-top: 18px;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: none;
-  background: linear-gradient(90deg, #22c55e, #16a34a);
-  color: #0f172a;
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+  color: white;
   font-weight: bold;
   font-size: 15px;
   cursor: pointer;
@@ -89,19 +90,18 @@ button {
 
 button:hover {
   transform: scale(1.02);
-  box-shadow: 0 0 15px #22c55e;
+  box-shadow: 0 10px 25px rgba(34, 197, 94, 0.3);
 }
 
 /* RESULT BOX */
 .result {
   margin-top: 15px;
   padding: 15px;
-  border-radius: 10px;
-  background: #0f172a;
+  border-radius: 12px;
+  background: #f1f5f9; /* gris clair */
   font-size: 14px;
   white-space: pre-line;
-  border: 1px solid #334155;
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+  border: 1px solid #e2e8f0;
 }
 
 /* TABLE */
@@ -113,28 +113,32 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  background: white;
 }
 
 th, td {
   padding: 8px;
   text-align: center;
-  border-bottom: 1px solid #334155;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 th {
-  background: #334155;
+  background: #f1f5f9;
+  font-weight: 600;
 }
 
 tr:hover {
-  background: #2a3a50;
+  background: #f8fafc;
 }
 
-/* MOBILE IMPROVEMENT */
+/* MOBILE */
 @media (max-width: 500px) {
   h1 {
     font-size: 18px;
   }
 }
+
+/* BADGE BET261 */
 .bet261-badge{
   display:inline-block;
   margin-left:8px;
@@ -143,17 +147,16 @@ tr:hover {
   font-weight:800;
   letter-spacing:1px;
   background: linear-gradient(90deg, #16a34a, #facc15);
-  color:#0b1020;
-  box-shadow: 0 0 18px rgba(34,197,94,.35);
+  color:#0f172a;
 }
 
+/* BUTTON SPECIAL */
 .btn-bet261{
   background: linear-gradient(90deg, #16a34a, #22c55e);
   border:none;
   border-radius:14px;
   font-weight:800;
   letter-spacing:.5px;
-  box-shadow: 0 10px 30px rgba(34,197,94,.25);
 }
 
 .btn-bet261:hover{
@@ -161,7 +164,7 @@ tr:hover {
 }
 
 .footer-bet261{
-  opacity:.8;
+  opacity:.7;
   text-align:center;
   margin-top:12px;
   font-size:12px;
