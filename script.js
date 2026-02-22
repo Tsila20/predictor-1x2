@@ -9,7 +9,6 @@
     if (box) box.innerHTML = msg;
   }
 
-  // Support "2,30" sy "2.30"
   function toNumber(val) {
     if (val == null) return NaN;
     const s = String(val).trim().replace(/\s+/g, "").replace(",", ".");
@@ -21,7 +20,6 @@
     return (x * 100).toFixed(1) + "%";
   }
 
-  // -------- Fallback (Odds -> implied probs) --------
   function impliedProbs(o1, ox, o2) {
     const p1 = 1 / o1;
     const px = 1 / ox;
@@ -51,14 +49,12 @@
     return text.replace(/^\uFEFF/, "");
   }
 
-  // detect delimiter on header line: ; or ,
   function detectDelimiter(headerLine) {
     const semi = headerLine.split(";").length;
     const comma = headerLine.split(",").length;
     return semi > comma ? ";" : ",";
   }
 
-  // parse a CSV line that may contain quotes
   function splitCSVLine(line, delim) {
     const out = [];
     let cur = "";
@@ -68,7 +64,6 @@
       const ch = line[i];
 
       if (ch === '"') {
-        // handle escaped quotes ""
         if (inQuotes && line[i + 1] === '"') {
           cur += '"';
           i++;
@@ -110,12 +105,16 @@
     return rows;
   }
 
-  // normalize headers: accept variations
   function pickField(obj, candidates) {
     for (const k of candidates) {
       if (obj[k] != null && String(obj[k]).trim() !== "") return obj[k];
     }
     return "";
+  }
+
+  function journeeToNumber(j) {
+    const m = String(j || "").match(/\d+/);
+    return m ? Number(m[0]) : NaN;
   }
 
   async function loadCSV() {
@@ -126,11 +125,12 @@
     const text = await res.text();
     const raw = parseCSVSmart(text);
 
-    // map fields safely (raha samy hafa ny header)
     const rows = raw.map((r) => {
       const out = {};
 
       out.journee = pickField(r, ["journee", "Journee", "Journée", "JOURNEE"]);
+      out.journee_num = journeeToNumber(out.journee);
+
       out.home = pickField(r, ["home", "Home", "HOME"]);
       out.away = pickField(r, ["away", "Away", "AWAY"]);
 
@@ -146,15 +146,12 @@
       return out;
     });
 
-    // keep only valid odds rows
-    const clean = rows.filter(
+    return rows.filter(
       (r) => Number.isFinite(r.odd_1) && Number.isFinite(r.odd_x) && Number.isFinite(r.odd_2)
     );
-
-    return clean;
   }
 
-  function renderTable(rows, limit = 50) {
+  function renderTable(rows, limit = 200) {
     const tbody = document.querySelector("#matchesTable tbody");
     if (!tbody) return;
 
@@ -185,42 +182,65 @@
     return "X";
   }
 
-  function findClosestRowsByOdds(o1, ox, o2, k = 25) {
-    const scored = DATA.map((r) => {
-      const d = Math.abs(r.odd_1 - o1) + Math.abs(r.odd_x - ox) + Math.abs(r.odd_2 - o2);
-      return { r, d };
-    });
-    scored.sort((a, b) => a.d - b.d);
-    return scored.slice(0, Math.min(k, scored.length)).map((x) => x.r);
-  }
+  // ✅ NEW: ampiasaina daholo DATA fa misy "weight" araka ny akaiky odds
+  function weightedStatsFromData(o1, ox, o2) {
+    const eps = 1e-6;
 
-  function statsFromRows(rows) {
-    const counts = { "1": 0, "X": 0, "2": 0 };
+    let wSum = 0;
+    let w1 = 0, wX = 0, w2 = 0;
     const scoreCounts = new Map();
 
-    rows.forEach((r) => {
+    let jMin = Infinity, jMax = -Infinity;
+    let used = 0;
+
+    for (const r of DATA) {
+      const d = Math.abs(r.odd_1 - o1) + Math.abs(r.odd_x - ox) + Math.abs(r.odd_2 - o2);
+
+      // weight: akaiky => lehibe
+      const w = 1 / (d + eps);
+
       const out = outcomeFromScore(r.result);
-      if (out) counts[out] += 1;
+      if (out) {
+        if (out === "1") w1 += w;
+        else if (out === "X") wX += w;
+        else if (out === "2") w2 += w;
+      }
 
       const sc = (r.result || "").trim();
-      if (sc) scoreCounts.set(sc, (scoreCounts.get(sc) || 0) + 1);
-    });
+      if (sc) scoreCounts.set(sc, (scoreCounts.get(sc) || 0) + w);
 
-    const n = rows.length || 1;
-    const p1 = counts["1"] / n;
-    const px = counts["X"] / n;
-    const p2 = counts["2"] / n;
+      if (Number.isFinite(r.journee_num)) {
+        jMin = Math.min(jMin, r.journee_num);
+        jMax = Math.max(jMax, r.journee_num);
+      }
 
+      wSum += w;
+      used++;
+    }
+
+    // probs
+    const denom = (w1 + wX + w2) || 1;
+    const p1 = w1 / denom;
+    const px = wX / denom;
+    const p2 = w2 / denom;
+
+    // best score by weighted frequency
     let bestScore = "";
-    let bestC = -1;
-    for (const [sc, c] of scoreCounts.entries()) {
-      if (c > bestC) {
-        bestC = c;
+    let bestW = -1;
+    for (const [sc, ww] of scoreCounts.entries()) {
+      if (ww > bestW) {
+        bestW = ww;
         bestScore = sc;
       }
     }
 
-    return { p1, px, p2, bestScore, n };
+    return {
+      p1, px, p2,
+      bestScore,
+      used,
+      jMin: Number.isFinite(jMin) ? jMin : null,
+      jMax: Number.isFinite(jMax) ? jMax : null,
+    };
   }
 
   // -------- Predict --------
@@ -231,7 +251,7 @@
       const oddXEl = $("oddX");
       const odd2El = $("odd2");
 
-      const mode = modeEl ? modeEl.value : "1x2"; // "1x2" na "exact"
+      const mode = modeEl ? modeEl.value : "1x2";
 
       const o1 = toNumber(odd1El ? odd1El.value : "");
       const ox = toNumber(oddXEl ? oddXEl.value : "");
@@ -242,16 +262,24 @@
         return;
       }
 
-      // ✅ Dataset mode
+      // ✅ Dataset mode (WEIGHTED)
       if (DATA_READY && DATA.length > 0) {
-        const nearest = findClosestRowsByOdds(o1, ox, o2, 25);
-        const s = statsFromRows(nearest);
+        const s = weightedStatsFromData(o1, ox, o2);
 
         const out = pickOutcome({ p1: s.p1, px: s.px, p2: s.p2 });
         const score = s.bestScore || exactScoreFromProbs(impliedProbs(o1, ox, o2));
 
+        const journeeInfo =
+          (s.jMin != null && s.jMax != null)
+            ? `<small>Journée nampiasaina: ${s.jMin} → ${s.jMax}</small><br/>`
+            : "";
+
         if (mode === "exact") {
-          show(`🎯 <b>Score Exact (from DATA):</b> <b>${score}</b><br/><small>Rows nalaina akaiky odds: ${s.n}</small>`);
+          show(
+            `🎯 <b>Score Exact (from DATA):</b> <b>${score}</b><br/>` +
+            `${journeeInfo}` +
+            `<small>Rows nampiasaina (DATA manontolo): ${s.used}</small>`
+          );
           return;
         }
 
@@ -259,7 +287,8 @@
           ✅ <b>Résultat (from DATA):</b> <b>${out.label}</b><br/>
           📊 <b>%</b> Home: <b>${percent(s.p1)}</b> | Draw: <b>${percent(s.px)}</b> | Away: <b>${percent(s.p2)}</b><br/>
           🎯 <b>Score Exact (from DATA):</b> <b>${score}</b><br/>
-          <small>Rows nalaina akaiky odds: ${s.n}</small>
+          ${journeeInfo}
+          <small>Rows nampiasaina (DATA manontolo): ${s.used}</small>
         `);
         return;
       }
@@ -293,10 +322,7 @@
       DATA = await loadCSV();
       DATA_READY = true;
       console.log("✅ DATA LOADED:", DATA.length);
-      renderTable(DATA, 50);
-
-      // raha tianao: message kely fa voa-load
-      // show(`✅ DATA voa-load: ${DATA.length} rows`);
+      renderTable(DATA, 200);
     } catch (e) {
       DATA_READY = false;
       console.warn("⚠️ DATA tsy voa-load:", e.message);
