@@ -1,88 +1,232 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-  <title>Predictor Bet261 - French Virtual League</title>
+"""
+Index V3 - Launcher / Menu for Predictor BET261 Legendary v3
+- Calls predictor_v3.py with the right args
+- Adds quick checks + presets (safe/normal/aggressive)
+"""
 
-  <meta name="theme-color" content="#16a34a" />
-  <meta name="description" content="Predictor Bet261 - Ampidiro ny Odds 1/X/2 dia mahazo Résultat + % + Score Exact." />
+import os
+import sys
+import subprocess
+import shlex
+from pathlib import Path
 
-  <!-- ✅ PWA (important for Add to Home Screen) -->
-  <link rel="manifest" href="manifest.json?v=20" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="BET261" />
 
-  <!-- ✅ ICONS (avoid Google "G") -->
-  <link rel="icon" href="icon-192.png?v=20" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=20" />
-  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=20" />
+def die(msg: str, code: int = 1):
+    print(f"[ERROR] {msg}", file=sys.stderr)
+    sys.exit(code)
 
-  <link rel="apple-touch-icon" href="icon-192.png?v=20" />
-  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png?v=20" />
-  <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png?v=20" />
 
-  <!-- ✅ FORCE CSS RELOAD (CACHE FIX) -->
-  <link rel="stylesheet" href="style.css?v=20" />
-</head>
+def check_deps():
+    try:
+        import pandas  # noqa
+        import numpy   # noqa
+    except Exception as e:
+        die(f"Missing dependency: {e}\nInstall: pip install pandas numpy")
 
-<body>
-  <div class="container">
-    <h1>Predictor <span class="bet261-badge">BET261</span></h1>
-    <p class="subtitle">Ampidiro ny Odds 1 / X / 2 dia mahazo Résultat + % + Score Exact.</p>
 
-    <div class="card">
-      <label for="mode">Mode:</label>
-      <select id="mode">
-        <option value="1x2">1X2</option>
-        <option value="exact">Score Exact</option>
-      </select>
+def check_files():
+    here = Path(__file__).resolve().parent
+    core = here / "predictor_v3.py"
+    if not core.exists():
+        die("predictor_v3.py not found in the same folder as index_v3.py")
+    return core
 
-      <label>Odd 1 (Home)</label>
-      <input id="odd1" type="text" inputmode="decimal" placeholder="ex: 2.30 na 2,30" />
 
-      <label>Odd X (Draw)</label>
-      <input id="oddX" type="text" inputmode="decimal" placeholder="ex: 5.00 na 5,00" />
+def run_cmd(cmd: str):
+    print("\n=== RUN ===")
+    print(cmd)
+    print("===========")
+    # Use sys.executable to ensure same python
+    p = subprocess.run(cmd, shell=True)
+    if p.returncode != 0:
+        die(f"Command failed with exit code {p.returncode}", p.returncode)
 
-      <label>Odd 2 (Away)</label>
-      <input id="odd2" type="text" inputmode="decimal" placeholder="ex: 3.40 na 3,40" />
 
-      <button id="predictBtn" class="btn-bet261">Predict</button>
+def preset_params(preset: str):
+    """
+    Presets:
+      - safe: strict rules, fewer bets, better bankroll protection
+      - normal: balanced
+      - aggressive: more bets, higher variance (not recommended for low bankroll)
+    """
+    preset = preset.lower().strip()
+    if preset == "safe":
+        return {
+            "conf_min": 0.60,
+            "dist_quantile": 0.15,
+            "min_neighbors": 11,
+            "ev_min": 0.04,
+            "stake_mode": "flat",
+            "flat_stake": 0.01,
+            "kelly_fraction": 0.25,
+            "temperature": 0.45,
+        }
+    if preset == "aggressive":
+        return {
+            "conf_min": 0.54,
+            "dist_quantile": 0.30,
+            "min_neighbors": 7,
+            "ev_min": 0.01,
+            "stake_mode": "flat",
+            "flat_stake": 0.02,
+            "kelly_fraction": 0.33,
+            "temperature": 0.30,
+        }
+    # normal default
+    return {
+        "conf_min": 0.56,
+        "dist_quantile": 0.20,
+        "min_neighbors": 9,
+        "ev_min": 0.02,
+        "stake_mode": "flat",
+        "flat_stake": 0.02,
+        "kelly_fraction": 0.25,
+        "temperature": 0.35,
+    }
 
-      <div id="resultBox" class="result">
-        Safidio mode, fenoy ny odds, dia tsindrio Predict.
-      </div>
-    </div>
 
-    <div class="card">
-      <h2>Matches (from CSV)</h2>
-      <p class="subtitle">Dataset: <code>data/france_virtual_league.csv</code></p>
-      <div class="tableWrap">
-        <table id="matchesTable">
-          <thead>
-            <tr>
-              <th>Journée</th>
-              <th>Home</th>
-              <th>Away</th>
-              <th>Odd 1</th>
-              <th>Odd X</th>
-              <th>Odd 2</th>
-              <th>Odd G</th>
-              <th>Odd NG</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
+def menu():
+    print("\n=== Predictor BET261 Legendary - INDEX v3 ===")
+    print("1) Rolling BACKTEST (train<journee -> test=journee)")
+    print("2) Paper trading preset: SAFE")
+    print("3) Paper trading preset: NORMAL")
+    print("4) Paper trading preset: AGGRESSIVE")
+    print("5) Exit")
+    return input("Select (1-5): ").strip()
 
-    <p class="footer-bet261">⚡ Predictor Bet261 • Smart Betting • Data Mode</p>
-  </div>
 
-  <!-- ✅ FORCE JS RELOAD (CACHE FIX) -->
-  <script src="script.js?v=20"></script>
-</body>
-</html>
+def ask_path(prompt: str, default: str = ""):
+    s = input(f"{prompt} [{default}]: ").strip()
+    return s if s else default
+
+
+def ask_int(prompt: str, default: int):
+    s = input(f"{prompt} [{default}]: ").strip()
+    if not s:
+        return default
+    try:
+        return int(s)
+    except:
+        return default
+
+
+def ask_float(prompt: str, default: float):
+    s = input(f"{prompt} [{default}]: ").strip()
+    if not s:
+        return default
+    try:
+        return float(s)
+    except:
+        return default
+
+
+def build_cmd(core_path: Path, csv_path: str, out_csv: str, test_min_j: int, test_max_j: int, train_window: int,
+              k_list: str, conf_min: float, dist_quantile: float, min_neighbors: int, temperature: float, ev_min: float,
+              stake_mode: str, flat_stake: float, kelly_fraction: float, bankroll0: float, debug: int):
+
+    py = shlex.quote(sys.executable)
+    core = shlex.quote(str(core_path))
+
+    cmd = (
+        f"{py} {core} "
+        f"--csv {shlex.quote(csv_path)} "
+        f"--out_csv {shlex.quote(out_csv)} "
+        f"--test_min_j {test_min_j} --test_max_j {test_max_j} "
+        f"--train_window {train_window} "
+        f"--k_list {shlex.quote(k_list)} "
+        f"--conf_min {conf_min} --dist_quantile {dist_quantile} --min_neighbors {min_neighbors} "
+        f"--temperature {temperature} "
+        f"--ev_min {ev_min} "
+        f"--stake_mode {shlex.quote(stake_mode)} --flat_stake {flat_stake} --kelly_fraction {kelly_fraction} "
+        f"--bankroll0 {bankroll0} "
+        f"--debug {debug}"
+    )
+    return cmd
+
+
+def main():
+    check_deps()
+    core = check_files()
+
+    while True:
+        choice = menu()
+        if choice == "5":
+            print("Bye.")
+            return
+
+        csv_path = ask_path("CSV file", "data.csv")
+        if not Path(csv_path).exists():
+            die(f"CSV not found: {csv_path}")
+
+        test_min_j = ask_int("test_min_j", 19)
+        test_max_j = ask_int("test_max_j", 40)
+        train_window = ask_int("train_window", 180)
+        k_list = ask_path("k_list (comma)", "7,11,15,21,31,41")
+        bankroll0 = ask_float("bankroll0", 1000.0)
+        debug = ask_int("debug (0/1/2)", 1)
+
+        if choice == "1":
+            # Manual params
+            conf_min = ask_float("conf_min", 0.56)
+            dist_quantile = ask_float("dist_quantile", 0.20)
+            min_neighbors = ask_int("min_neighbors", 9)
+            temperature = ask_float("temperature", 0.35)
+            ev_min = ask_float("ev_min", 0.02)
+
+            stake_mode = ask_path("stake_mode (flat/kelly)", "flat")
+            flat_stake = ask_float("flat_stake", 0.02)
+            kelly_fraction = ask_float("kelly_fraction", 0.25)
+
+            out_csv = ask_path("output csv", "backtest_v3_output.csv")
+
+        elif choice in ["2", "3", "4"]:
+            preset = {"2": "safe", "3": "normal", "4": "aggressive"}[choice]
+            p = preset_params(preset)
+
+            conf_min = p["conf_min"]
+            dist_quantile = p["dist_quantile"]
+            min_neighbors = p["min_neighbors"]
+            temperature = p["temperature"]
+            ev_min = p["ev_min"]
+
+            stake_mode = p["stake_mode"]
+            flat_stake = p["flat_stake"]
+            kelly_fraction = p["kelly_fraction"]
+
+            out_csv = ask_path("output csv", f"paper_{preset}_v3_output.csv")
+            print(f"\n[PRESET] {preset.upper()} -> conf_min={conf_min}, dist_q={dist_quantile}, min_neighbors={min_neighbors}, ev_min={ev_min}, stake={stake_mode}")
+
+        else:
+            print("Invalid.")
+            continue
+
+        cmd = build_cmd(
+            core_path=core,
+            csv_path=csv_path,
+            out_csv=out_csv,
+            test_min_j=test_min_j,
+            test_max_j=test_max_j,
+            train_window=train_window,
+            k_list=k_list,
+            conf_min=conf_min,
+            dist_quantile=dist_quantile,
+            min_neighbors=min_neighbors,
+            temperature=temperature,
+            ev_min=ev_min,
+            stake_mode=stake_mode,
+            flat_stake=flat_stake,
+            kelly_fraction=kelly_fraction,
+            bankroll0=bankroll0,
+            debug=debug
+        )
+        run_cmd(cmd)
+
+        print("\n[INFO] Output saved ->", out_csv)
+        print("Tip: Open the CSV and sort by 'bet' then check 'reason', 'ev', 'k_used', 'n_close'.")
+
+
+if __name__ == "__main__":
+    main()
