@@ -2,21 +2,34 @@
 # -*- coding: utf-8 -*-
 
 """
-Index V3 - Launcher / Menu for Predictor BET261 Legendary v3
-- Calls predictor_v3.py with the right args
-- Adds quick checks + presets (safe/normal/aggressive)
+INDEX V3 (NEW) - Launcher / Menu for Predictor BET261 Legendary v3
+- Auto-merge datasets before running predictor
+- Flexible paths: predictor_v3.py and merge_datasets.py can be in root or scripts/
+- Default merged CSV: data/processed/full_dataset.csv
+- Outputs saved into outputs/
 """
 
-import os
 import sys
 import subprocess
 import shlex
 from pathlib import Path
 
 
+# -------------------------
+# Utils
+# -------------------------
 def die(msg: str, code: int = 1):
     print(f"[ERROR] {msg}", file=sys.stderr)
     sys.exit(code)
+
+
+def run_cmd(cmd: str, cwd: Path | None = None):
+    print("\n=== RUN ===")
+    print(cmd)
+    print("===========")
+    p = subprocess.run(cmd, shell=True, cwd=str(cwd) if cwd else None)
+    if p.returncode != 0:
+        die(f"Command failed with exit code {p.returncode}", p.returncode)
 
 
 def check_deps():
@@ -27,31 +40,80 @@ def check_deps():
         die(f"Missing dependency: {e}\nInstall: pip install pandas numpy")
 
 
-def check_files():
-    here = Path(__file__).resolve().parent
-    core = here / "predictor_v3.py"
-    if not core.exists():
-        die("predictor_v3.py not found in the same folder as index_v3.py")
+def find_first_existing(candidates: list[Path]) -> Path | None:
+    for p in candidates:
+        if p.exists():
+            return p
+    return None
+
+
+# -------------------------
+# Path resolution
+# -------------------------
+def repo_root() -> Path:
+    # Assume this index_v3.py is at repo root or somewhere inside
+    return Path(__file__).resolve().parent
+
+
+def find_predictor_py() -> Path:
+    here = repo_root()
+    candidates = [
+        here / "predictor_v3.py",
+        here / "scripts" / "predictor_v3.py",
+    ]
+    core = find_first_existing(candidates)
+    if not core:
+        die("predictor_v3.py not found. Put it in repo root OR scripts/predictor_v3.py")
     return core
 
 
-def run_cmd(cmd: str):
-    print("\n=== RUN ===")
-    print(cmd)
-    print("===========")
-    # Use sys.executable to ensure same python
-    p = subprocess.run(cmd, shell=True)
-    if p.returncode != 0:
-        die(f"Command failed with exit code {p.returncode}", p.returncode)
+def find_merge_py() -> Path | None:
+    here = repo_root()
+    candidates = [
+        here / "merge_datasets.py",
+        here / "scripts" / "merge_datasets.py",
+    ]
+    return find_first_existing(candidates)
 
 
+def ensure_outputs_dir() -> Path:
+    outdir = repo_root() / "outputs"
+    outdir.mkdir(parents=True, exist_ok=True)
+    return outdir
+
+
+# -------------------------
+# Inputs
+# -------------------------
+def ask_path(prompt: str, default: str = ""):
+    s = input(f"{prompt} [{default}]: ").strip()
+    return s if s else default
+
+
+def ask_int(prompt: str, default: int):
+    s = input(f"{prompt} [{default}]: ").strip()
+    if not s:
+        return default
+    try:
+        return int(s)
+    except:
+        return default
+
+
+def ask_float(prompt: str, default: float):
+    s = input(f"{prompt} [{default}]: ").strip()
+    if not s:
+        return default
+    try:
+        return float(s)
+    except:
+        return default
+
+
+# -------------------------
+# Presets
+# -------------------------
 def preset_params(preset: str):
-    """
-    Presets:
-      - safe: strict rules, fewer bets, better bankroll protection
-      - normal: balanced
-      - aggressive: more bets, higher variance (not recommended for low bankroll)
-    """
     preset = preset.lower().strip()
     if preset == "safe":
         return {
@@ -88,45 +150,57 @@ def preset_params(preset: str):
     }
 
 
+# -------------------------
+# Menu
+# -------------------------
 def menu():
-    print("\n=== Predictor BET261 Legendary - INDEX v3 ===")
+    print("\n=== Predictor BET261 Legendary - INDEX v3 (NEW) ===")
+    print("0) Merge datasets only")
     print("1) Rolling BACKTEST (train<journee -> test=journee)")
     print("2) Paper trading preset: SAFE")
     print("3) Paper trading preset: NORMAL")
     print("4) Paper trading preset: AGGRESSIVE")
     print("5) Exit")
-    return input("Select (1-5): ").strip()
+    return input("Select (0-5): ").strip()
 
 
-def ask_path(prompt: str, default: str = ""):
-    s = input(f"{prompt} [{default}]: ").strip()
-    return s if s else default
+# -------------------------
+# Merge step
+# -------------------------
+def try_merge():
+    m = find_merge_py()
+    if not m:
+        print("[WARN] merge_datasets.py not found -> skipping merge.")
+        return
+
+    cmd = f"{shlex.quote(sys.executable)} {shlex.quote(str(m))}"
+    # run from repo root to make relative paths work
+    run_cmd(cmd, cwd=repo_root())
+    print("[INFO] Merge completed.")
 
 
-def ask_int(prompt: str, default: int):
-    s = input(f"{prompt} [{default}]: ").strip()
-    if not s:
-        return default
-    try:
-        return int(s)
-    except:
-        return default
-
-
-def ask_float(prompt: str, default: float):
-    s = input(f"{prompt} [{default}]: ").strip()
-    if not s:
-        return default
-    try:
-        return float(s)
-    except:
-        return default
-
-
-def build_cmd(core_path: Path, csv_path: str, out_csv: str, test_min_j: int, test_max_j: int, train_window: int,
-              k_list: str, conf_min: float, dist_quantile: float, min_neighbors: int, temperature: float, ev_min: float,
-              stake_mode: str, flat_stake: float, kelly_fraction: float, bankroll0: float, debug: int):
-
+# -------------------------
+# Build predictor command
+# -------------------------
+def build_cmd(
+    core_path: Path,
+    csv_path: str,
+    out_csv: str,
+    test_min_j: int,
+    test_max_j: int,
+    train_window: int,
+    k_list: str,
+    conf_min: float,
+    dist_quantile: float,
+    min_neighbors: int,
+    temperature: float,
+    ev_min: float,
+    stake_mode: str,
+    flat_stake: float,
+    kelly_fraction: float,
+    bankroll0: float,
+    debug: int
+):
     py = shlex.quote(sys.executable)
     core = shlex.quote(str(core_path))
 
@@ -147,9 +221,13 @@ def build_cmd(core_path: Path, csv_path: str, out_csv: str, test_min_j: int, tes
     return cmd
 
 
+# -------------------------
+# Main
+# -------------------------
 def main():
     check_deps()
-    core = check_files()
+    core = find_predictor_py()
+    outdir = ensure_outputs_dir()
 
     while True:
         choice = menu()
@@ -157,10 +235,24 @@ def main():
             print("Bye.")
             return
 
-        csv_path = ask_path("CSV file", "data.csv")
-        if not Path(csv_path).exists():
-            die(f"CSV not found: {csv_path}")
+        if choice == "0":
+            try_merge()
+            continue
 
+        # Default merged dataset
+        default_csv = "data/processed/full_dataset.csv"
+        csv_path = ask_path("CSV file", default_csv)
+
+        # If user points to merged csv but it doesn't exist, try merge first
+        if not Path(csv_path).exists():
+            print(f"[WARN] CSV not found: {csv_path}")
+            print("[INFO] Trying merge to generate merged dataset...")
+            try_merge()
+
+        if not Path(csv_path).exists():
+            die(f"CSV still not found: {csv_path}")
+
+        # Common params
         test_min_j = ask_int("test_min_j", 19)
         test_max_j = ask_int("test_max_j", 40)
         train_window = ask_int("train_window", 180)
@@ -180,7 +272,8 @@ def main():
             flat_stake = ask_float("flat_stake", 0.02)
             kelly_fraction = ask_float("kelly_fraction", 0.25)
 
-            out_csv = ask_path("output csv", "backtest_v3_output.csv")
+            out_csv = ask_path("output csv name", "backtest_v3_output.csv")
+            out_csv_path = str(outdir / out_csv)
 
         elif choice in ["2", "3", "4"]:
             preset = {"2": "safe", "3": "normal", "4": "aggressive"}[choice]
@@ -196,17 +289,25 @@ def main():
             flat_stake = p["flat_stake"]
             kelly_fraction = p["kelly_fraction"]
 
-            out_csv = ask_path("output csv", f"paper_{preset}_v3_output.csv")
-            print(f"\n[PRESET] {preset.upper()} -> conf_min={conf_min}, dist_q={dist_quantile}, min_neighbors={min_neighbors}, ev_min={ev_min}, stake={stake_mode}")
+            out_csv = ask_path("output csv name", f"paper_{preset}_v3_output.csv")
+            out_csv_path = str(outdir / out_csv)
 
+            print(
+                f"\n[PRESET] {preset.upper()} -> "
+                f"conf_min={conf_min}, dist_q={dist_quantile}, "
+                f"min_neighbors={min_neighbors}, ev_min={ev_min}, stake={stake_mode}"
+            )
         else:
-            print("Invalid.")
+            print("Invalid choice.")
             continue
+
+        # Always merge before running predictor (recommended)
+        try_merge()
 
         cmd = build_cmd(
             core_path=core,
             csv_path=csv_path,
-            out_csv=out_csv,
+            out_csv=out_csv_path,
             test_min_j=test_min_j,
             test_max_j=test_max_j,
             train_window=train_window,
@@ -222,9 +323,11 @@ def main():
             bankroll0=bankroll0,
             debug=debug
         )
-        run_cmd(cmd)
 
-        print("\n[INFO] Output saved ->", out_csv)
+        # Run predictor from repo root
+        run_cmd(cmd, cwd=repo_root())
+
+        print("\n[INFO] Output saved ->", out_csv_path)
         print("Tip: Open the CSV and sort by 'bet' then check 'reason', 'ev', 'k_used', 'n_close'.")
 
 
