@@ -1,36 +1,168 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Preductor 1X2</title>
-<link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Preductor 1X2 — PRO</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <div class="container">
-    <h1>⚽ Preductor 1X2 — Virtual League</h1>
-
-    <div class="controls">
-      <button id="btnLoad">Charger Journées (raw)</button>
-
-      <select id="leagueSelect"></select>
-      <select id="journeeSelect"></select>
-
-      <label class="toggle">
-        <input type="checkbox" id="onlyValue" />
-        <span>Value only</span>
-      </label>
-
-      <label class="toggle">
-        <input type="checkbox" id="onlyHighConf" />
-        <span>High confidence only</span>
-      </label>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">⚽</div>
+      <div>
+        <div class="title">Preductor 1X2</div>
+        <div class="subtitle">Virtual League — PRO UI</div>
+      </div>
     </div>
 
-    <div id="summary" class="card"></div>
-    <div id="tableWrap" class="card"></div>
-  </div>
+    <div class="wallet">
+      <div class="wallet-label">Solde</div>
+      <div class="wallet-row">
+        <input id="balance" type="number" inputmode="numeric" class="balance-input" value="0" />
+        <span class="currency">MGA</span>
+      </div>
+    </div>
+  </header>
 
-<script src="script.js"></script>
+  <main class="wrap">
+    <!-- League + Match -->
+    <section class="card">
+      <div class="row">
+        <div class="seg">
+          <button class="seg-btn active" data-league="French League">French</button>
+          <button class="seg-btn" data-league="German League">German</button>
+          <button class="seg-btn" data-league="Portuguese League">Portuguese</button>
+        </div>
+        <button id="btnReset" class="ghost">Reset</button>
+      </div>
+
+      <div class="match">
+        <div class="team">
+          <label>Équipe 1</label>
+          <input id="home" class="input" placeholder="Paris SG" value="Paris SG"/>
+        </div>
+
+        <div class="vs">VS</div>
+
+        <div class="team">
+          <label>Équipe 2</label>
+          <input id="away" class="input" placeholder="Metz" value="Metz"/>
+        </div>
+      </div>
+
+      <div class="small-note">
+        Saisie: équipe + odds 1X2. Puis clique un bouton (1/X/2) pour préparer le ticket.
+      </div>
+    </section>
+
+    <!-- Odds 1X2 -->
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">1X2</div>
+        <div class="pill" id="leaguePill">French League</div>
+      </div>
+
+      <div class="odds-grid">
+        <div class="oddbox">
+          <div class="oddlabel">1</div>
+          <input id="odd1" class="oddinput" inputmode="decimal" value="1.12"/>
+        </div>
+
+        <div class="oddbox">
+          <div class="oddlabel">X</div>
+          <input id="oddx" class="oddinput" inputmode="decimal" value="9.40"/>
+        </div>
+
+        <div class="oddbox">
+          <div class="oddlabel">2</div>
+          <input id="odd2" class="oddinput" inputmode="decimal" value="17.29"/>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="btnPredict" class="primary">Predict</button>
+        <button id="btnAutoPick" class="secondary">Auto-pick</button>
+      </div>
+
+      <div id="predPanel" class="pred">
+        <div class="pred-left">
+          <div class="pred-title">Résultat</div>
+          <div class="pred-main" id="predMain">—</div>
+          <div class="pred-sub" id="predSub">Entrez les odds, puis Predict.</div>
+        </div>
+        <div class="pred-right">
+          <div class="pred-kpi">
+            <div class="kpi-label">Confiance</div>
+            <div class="kpi-value" id="conf">—</div>
+          </div>
+          <div class="pred-kpi">
+            <div class="kpi-label">Prob (norm.)</div>
+            <div class="kpi-value" id="prob">—</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bet slip -->
+    <section class="card slip">
+      <div class="card-head">
+        <div class="card-title">Ticket</div>
+        <div class="pill pill-warn" id="ticketStatus">NO BET</div>
+      </div>
+
+      <div class="slip-line">
+        <div class="slip-match" id="slipMatch">—</div>
+        <div class="slip-pick" id="slipPick">—</div>
+      </div>
+
+      <div class="slip-odds">
+        <div class="slip-odds-left">Cote</div>
+        <div class="slip-odds-right" id="slipOdd">—</div>
+      </div>
+
+      <div class="stake">
+        <label>Mise (MGA)</label>
+        <input id="stake" type="number" inputmode="numeric" class="input" placeholder="Ex: 1000" value="0"/>
+        <div class="stake-hints">
+          <button class="chip" data-stake="500">500</button>
+          <button class="chip" data-stake="1000">1000</button>
+          <button class="chip" data-stake="2000">2000</button>
+          <button class="chip" data-stake="5000">5000</button>
+        </div>
+      </div>
+
+      <div class="slip-footer">
+        <div class="payout">
+          <div class="payout-label">Gain potentiel</div>
+          <div class="payout-value" id="payout">—</div>
+        </div>
+
+        <button id="btnSave" class="primary">Enregistrer (History)</button>
+      </div>
+
+      <div class="danger-note">
+        ⚠️ Responsable: tsy misy garantie fandresena. Ity app ity dia “analyse/prediction” fotsiny.
+      </div>
+    </section>
+
+    <!-- History -->
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">History</div>
+        <button id="btnClearHistory" class="ghost">Clear</button>
+      </div>
+      <div id="history" class="history"></div>
+    </section>
+
+  </main>
+
+  <nav class="bottom">
+    <button class="navbtn active">Virtual</button>
+    <button class="navbtn">Mes paris</button>
+    <button class="navbtn">Menu</button>
+  </nav>
+
+  <script src="script.js"></script>
 </body>
 </html>
