@@ -3,10 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Preductor 1X2 — PRO</title>
+  <title>Preductor 1X2 — PRO UI</title>
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
+
+  <!-- Small top floating button (optional) -->
+  <div class="float-top">
+    <button id="btnLoadRaw" class="ghost small">Charger Journées (raw)</button>
+  </div>
+
   <header class="topbar">
     <div class="brand">
       <div class="logo">⚽</div>
@@ -19,17 +25,18 @@
     <div class="wallet">
       <div class="wallet-label">Solde</div>
       <div class="wallet-row">
-        <input id="balance" type="number" inputmode="numeric" class="balance-input" value="0" />
+        <input id="balance" type="number" inputmode="numeric" class="balance-input" value="0"/>
         <span class="currency">MGA</span>
       </div>
     </div>
   </header>
 
   <main class="wrap">
-    <!-- League + Match -->
+
+    <!-- League + Teams -->
     <section class="card">
       <div class="row">
-        <div class="seg">
+        <div class="seg" id="leagueSeg">
           <button class="seg-btn active" data-league="French League">French</button>
           <button class="seg-btn" data-league="German League">German</button>
           <button class="seg-btn" data-league="Portuguese League">Portuguese</button>
@@ -40,7 +47,7 @@
       <div class="match">
         <div class="team">
           <label>Équipe 1</label>
-          <input id="home" class="input" placeholder="Paris SG" value="Paris SG"/>
+          <input id="home" class="input" placeholder="Paris SG" value="Toulouse"/>
         </div>
 
         <div class="vs">VS</div>
@@ -52,11 +59,11 @@
       </div>
 
       <div class="small-note">
-        Saisie: équipe + odds 1X2. Puis clique un bouton (1/X/2) pour préparer le ticket.
+        Saisie: équipe + odds 1X2. Puis clique <b>Predict</b> (na tsindrio ilay box odds 1/X/2).
       </div>
     </section>
 
-    <!-- Odds 1X2 -->
+    <!-- Odds -->
     <section class="card">
       <div class="card-head">
         <div class="card-title">1X2</div>
@@ -64,25 +71,25 @@
       </div>
 
       <div class="odds-grid">
-        <div class="oddbox">
+        <button class="oddbox" id="box1" type="button">
           <div class="oddlabel">1</div>
-          <input id="odd1" class="oddinput" inputmode="decimal" value="1.12"/>
-        </div>
+          <input id="odd1" class="oddinput" inputmode="decimal" value="2,48"/>
+        </button>
 
-        <div class="oddbox">
+        <button class="oddbox" id="boxX" type="button">
           <div class="oddlabel">X</div>
-          <input id="oddx" class="oddinput" inputmode="decimal" value="9.40"/>
-        </div>
+          <input id="oddx" class="oddinput" inputmode="decimal" value="3,58"/>
+        </button>
 
-        <div class="oddbox">
+        <button class="oddbox" id="box2" type="button">
           <div class="oddlabel">2</div>
-          <input id="odd2" class="oddinput" inputmode="decimal" value="17.29"/>
-        </div>
+          <input id="odd2" class="oddinput" inputmode="decimal" value="1,85"/>
+        </button>
       </div>
 
       <div class="actions">
-        <button id="btnPredict" class="primary">Predict</button>
-        <button id="btnAutoPick" class="secondary">Auto-pick</button>
+        <button id="btnPredict" class="primary" type="button">Predict</button>
+        <button id="btnAutoPick" class="secondary" type="button">Auto-pick</button>
       </div>
 
       <div id="predPanel" class="pred">
@@ -104,7 +111,7 @@
       </div>
     </section>
 
-    <!-- Bet slip -->
+    <!-- Ticket -->
     <section class="card slip">
       <div class="card-head">
         <div class="card-title">Ticket</div>
@@ -125,10 +132,10 @@
         <label>Mise (MGA)</label>
         <input id="stake" type="number" inputmode="numeric" class="input" placeholder="Ex: 1000" value="0"/>
         <div class="stake-hints">
-          <button class="chip" data-stake="500">500</button>
-          <button class="chip" data-stake="1000">1000</button>
-          <button class="chip" data-stake="2000">2000</button>
-          <button class="chip" data-stake="5000">5000</button>
+          <button class="chip" data-stake="500" type="button">500</button>
+          <button class="chip" data-stake="1000" type="button">1000</button>
+          <button class="chip" data-stake="2000" type="button">2000</button>
+          <button class="chip" data-stake="5000" type="button">5000</button>
         </div>
       </div>
 
@@ -138,11 +145,11 @@
           <div class="payout-value" id="payout">—</div>
         </div>
 
-        <button id="btnSave" class="primary">Enregistrer (History)</button>
+        <button id="btnSave" class="primary" type="button">Enregistrer (History)</button>
       </div>
 
       <div class="danger-note">
-        ⚠️ Responsable: tsy misy garantie fandresena. Ity app ity dia “analyse/prediction” fotsiny.
+        ⚠️ Responsable: prediction fotsiny. Tsy misy garantie fandresena.
       </div>
     </section>
 
@@ -150,7 +157,7 @@
     <section class="card">
       <div class="card-head">
         <div class="card-title">History</div>
-        <button id="btnClearHistory" class="ghost">Clear</button>
+        <button id="btnClearHistory" class="ghost" type="button">Clear</button>
       </div>
       <div id="history" class="history"></div>
     </section>
@@ -158,9 +165,9 @@
   </main>
 
   <nav class="bottom">
-    <button class="navbtn active">Virtual</button>
-    <button class="navbtn">Mes paris</button>
-    <button class="navbtn">Menu</button>
+    <button class="navbtn active" type="button">Virtual</button>
+    <button class="navbtn" type="button">Mes paris</button>
+    <button class="navbtn" type="button">Menu</button>
   </nav>
 
   <script src="script.js"></script>
